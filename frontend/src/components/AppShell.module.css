@@ -1,0 +1,109 @@
+.skip {
+  position: absolute;
+  left: var(--space-3);
+  top: -4rem;
+  z-index: 20;
+  padding: var(--space-2) var(--space-4);
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius-sm);
+}
+
+.skip:focus {
+  top: var(--space-3);
+}
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+
+/*
+ * Phones: brand and account on the first row, navigation on its own row
+ * beneath. From 40rem up, everything sits on one line.
+ */
+.bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'brand account'
+    'nav nav';
+  align-items: center;
+  column-gap: var(--space-4);
+}
+
+.brand {
+  grid-area: brand;
+  display: inline-flex;
+  padding: var(--space-3) 0;
+  text-decoration: none;
+  justify-self: start;
+}
+
+.nav {
+  grid-area: nav;
+  display: flex;
+  gap: var(--space-5);
+}
+
+.link {
+  padding: var(--space-2) 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.current {
+  border-bottom-color: var(--accent);
+  color: var(--ink);
+}
+
+.account {
+  grid-area: account;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.email {
+  display: none;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.main {
+  flex: 1;
+  padding-block: var(--space-6) var(--space-8);
+}
+
+@media (min-width: 40rem) {
+  .bar {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: 'brand nav account';
+    column-gap: var(--space-6);
+  }
+
+  .link {
+    padding: var(--space-4) 0;
+  }
+
+  .email {
+    display: block;
+  }
+}

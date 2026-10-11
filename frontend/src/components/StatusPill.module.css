@@ -1,0 +1,54 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.neutral {
+  background: var(--sunken);
+  color: var(--ink-2);
+}
+
+.busy {
+  background: var(--busy-soft);
+  color: var(--busy);
+}
+
+/* A run in progress breathes, so a glance tells you it is alive */
+.busy .dot {
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}

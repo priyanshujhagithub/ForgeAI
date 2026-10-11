@@ -1,0 +1,115 @@
+/*
+ * Design tokens. Components use these names only, never raw values, so the
+ * light and dark themes and any later restyling happen in this one file.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* Surfaces: warm paper, not pure white */
+  --paper: #f7f5f0;
+  --surface: #ffffff;
+  --sunken: #efece5;
+
+  /* Ink */
+  --ink: #1b1a17;
+  --ink-2: #55524a;
+  --ink-3: #807c71;
+
+  /* Lines */
+  --rule: #dedad0;
+  --rule-strong: #c4bfb1;
+
+  /* One accent, used sparingly: the ember */
+  --accent: #c2410c;
+  --accent-hover: #a3360a;
+  --accent-ink: #ffffff;
+  --accent-soft: #fbe9df;
+
+  /* Status */
+  --ok: #1b7046;
+  --ok-soft: #e2f2e8;
+  --warn: #8a5d00;
+  --warn-soft: #faefd2;
+  --bad: #b42318;
+  --bad-soft: #fde7e4;
+  --busy: #1d4f91;
+  --busy-soft: #e3edf9;
+
+  /* Diff */
+  --diff-add: #e3f3e8;
+  --diff-add-mark: #1b7046;
+  --diff-del: #fde9e6;
+  --diff-del-mark: #b42318;
+
+  --focus: #1d4f91;
+  --shadow: 0 1px 2px rgb(27 26 23 / 6%), 0 8px 24px rgb(27 26 23 / 8%);
+
+  /* Type */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --text-hero: clamp(2.25rem, 1.2rem + 4.2vw, 4rem);
+
+  /* Space: a 4px grid */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
+
+  --radius-sm: 3px;
+  --radius: 6px;
+
+  --page-width: 70rem;
+  --gutter: clamp(1rem, 4vw, 2rem);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #141311;
+    --surface: #1c1b18;
+    --sunken: #0e0d0c;
+
+    --ink: #ece9e1;
+    --ink-2: #b5b1a6;
+    --ink-3: #858176;
+
+    --rule: #2e2c27;
+    --rule-strong: #45423a;
+
+    --accent: #f08a4b;
+    --accent-hover: #f5a06b;
+    --accent-ink: #1b1a17;
+    --accent-soft: #38230f;
+
+    --ok: #62c392;
+    --ok-soft: #142b1e;
+    --warn: #dfb04a;
+    --warn-soft: #30270f;
+    --bad: #f28b7f;
+    --bad-soft: #391a17;
+    --busy: #8ab4ee;
+    --busy-soft: #16243a;
+
+    --diff-add: #14301f;
+    --diff-add-mark: #62c392;
+    --diff-del: #3a1b18;
+    --diff-del-mark: #f28b7f;
+
+    --focus: #8ab4ee;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 45%);
+  }
+}

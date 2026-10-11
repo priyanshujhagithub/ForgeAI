@@ -1,0 +1,111 @@
+/* Phones: compose, then history. Wide screens: side by side. */
+.columns {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.compose {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+.history {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+}
+
+.examplesLabel {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.examples {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.example {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  text-align: left;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.example:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+.runs {
+  display: grid;
+}
+
+.run {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--rule);
+  color: inherit;
+  text-decoration: none;
+}
+
+.run:hover .runTask {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 0.2em;
+}
+
+.runTask {
+  width: fit-content;
+  max-width: 100%;
+  font-weight: 500;
+  /* Long tasks are cut to two lines in the list; the run page shows all of it */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.runMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+}
+
+.danger > div:first-child {
+  flex: 1 1 18rem;
+  display: grid;
+  gap: var(--space-1);
+}
+
+@media (min-width: 56rem) {
+  .columns {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: var(--space-8);
+  }
+}

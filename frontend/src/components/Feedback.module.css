@@ -1,0 +1,40 @@
+.skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.bar {
+  height: 0.85rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--sunken) 25%, var(--rule) 50%, var(--sunken) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.empty {
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--text-md);
+}
+
+.emptyBody {
+  max-width: 34rem;
+  margin: var(--space-2) auto 0;
+  color: var(--ink-2);
+}
+
+.emptyAction {
+  margin-top: var(--space-5);
+}

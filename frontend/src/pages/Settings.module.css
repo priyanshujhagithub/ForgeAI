@@ -1,0 +1,22 @@
+/* Each settings card stacks its content with even spacing */
+.card {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.card > * {
+  max-width: 100%;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.accountMeta {
+  width: 100%;
+}

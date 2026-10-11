@@ -13,7 +13,7 @@ which decision, and why the system is shaped the way it is.
 | **Ollama** (or any OpenAI-compatible endpoint) | Inference | |
 | **E2B** | Running untrusted generated code and the repository's tests | |
 | **Langfuse** (optional) | Traces of runs, attempts and model calls | |
-| **Streamlit UI** | A view of one agent run | Any logic; it only calls the Java API |
+| **Web app** (React) | Pages for projects and runs; a live view of one agent run | Any business logic; it only calls the Java API |
 
 The split follows trust and state. Everything that needs a user's identity or
 their GitHub token lives in Java. Everything that touches a model lives in
@@ -25,7 +25,7 @@ returns structured results.
 ```mermaid
 sequenceDiagram
     actor User
-    participant UI as Streamlit UI
+    participant UI as Web app
     participant J as project-service
     participant DB as PostgreSQL
     participant GH as GitHub
@@ -149,9 +149,9 @@ variable, never a command line, URL or `.git/config`.
 
 ## What is deliberately not here
 
-Kafka, a worker fleet, a gateway and a React front end were considered early and
-dropped: the product is one workflow, and a database row plus a bounded executor
-is enough to run it. LangChain and similar frameworks are not used; the agent is
+Kafka, a worker fleet and a gateway were considered early and dropped: the
+product is one workflow, and a database row plus a bounded executor is enough to
+run it. LangChain and similar frameworks are not used; the agent is
 about 2,000 lines of plain Python that can be read top to bottom.
 
 ## Known limits

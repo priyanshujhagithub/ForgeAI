@@ -1,0 +1,100 @@
+/*
+ * View Transitions.
+ *
+ * React Router calls document.startViewTransition() for links and navigations
+ * marked with `viewTransition`. The browser snapshots the old page, applies
+ * the DOM update, and animates between the two. Browsers without the API
+ * simply navigate; nothing here is required for the app to work.
+ *
+ * Three kinds of element take part:
+ *
+ *   root          the page content: a short cross-fade with a small rise
+ *   app-header    the top bar: named so it stays put instead of fading
+ *   *-title       a title shared by a list item and the page it opens, so the
+ *                 text travels from the list into the heading
+ *
+ * A view-transition-name must be unique on a page or the browser abandons the
+ * transition. That is why there is one name per kind of title, and why a list
+ * item only takes its name while it is the one being opened.
+ */
+
+::view-transition-old(root) {
+  animation: 120ms cubic-bezier(0.4, 0, 1, 1) both vt-leave;
+}
+
+::view-transition-new(root) {
+  animation: 240ms cubic-bezier(0, 0, 0.2, 1) 60ms both vt-enter;
+}
+
+@keyframes vt-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ---------- the header stays where it is ---------- */
+
+.vt-header {
+  view-transition-name: app-header;
+}
+
+::view-transition-group(app-header) {
+  animation: none;
+}
+
+::view-transition-old(app-header) {
+  display: none;
+}
+
+::view-transition-new(app-header) {
+  animation: none;
+}
+
+/* ---------- titles that travel between pages ---------- */
+
+.vt-project-title {
+  view-transition-name: project-title;
+}
+
+.vt-run-title {
+  view-transition-name: run-title;
+}
+
+.vt-auth-title {
+  view-transition-name: auth-title;
+}
+
+::view-transition-group(project-title),
+::view-transition-group(run-title),
+::view-transition-group(auth-title) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* The two snapshots differ in size; scale them by height instead of stretching. */
+::view-transition-old(project-title),
+::view-transition-new(project-title),
+::view-transition-old(run-title),
+::view-transition-new(run-title),
+::view-transition-old(auth-title),
+::view-transition-new(auth-title) {
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

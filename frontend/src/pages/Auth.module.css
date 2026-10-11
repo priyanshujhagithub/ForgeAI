@@ -1,0 +1,66 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.header {
+  padding: var(--space-4) var(--gutter);
+}
+
+.brand {
+  display: inline-flex;
+  text-decoration: none;
+}
+
+.main {
+  flex: 1;
+  display: grid;
+  place-items: start center;
+  padding: var(--space-6) var(--gutter) var(--space-8);
+}
+
+.card {
+  width: 100%;
+  max-width: 24rem;
+}
+
+.title {
+  /* Fits its text, so the shared-title transition moves a snug box */
+  width: fit-content;
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin-top: var(--space-2);
+  color: var(--ink-2);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.switch {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.switch a {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (min-width: 40rem) {
+  .main {
+    place-items: center;
+    padding-bottom: var(--space-9);
+  }
+}

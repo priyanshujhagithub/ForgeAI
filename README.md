@@ -10,7 +10,7 @@ framework, and tests at every layer.
 
 ```mermaid
 flowchart LR
-    UI[Streamlit UI] --> J[project-service<br/>Java, Spring Boot]
+    UI[React web app] --> J[project-service<br/>Java, Spring Boot]
     J <--> DB[(PostgreSQL)]
     J <--> GH[GitHub API]
     J --> P[ai-service<br/>Python, FastAPI]
@@ -37,9 +37,9 @@ How a run moves through the system, and why it is built this way, is in
 | Running tests in an E2B sandbox | Working against real E2B |
 | Diagnose-and-fix loop (up to 3 attempts) | Working; see results below for how often it succeeds |
 | Langfuse tracing | Working against Langfuse Cloud |
-| Background runs with a pollable status | Tested; not yet exercised end to end through the API |
-| Opening the pull request | Tested against a mock GitHub; no real pull request opened yet |
-| Streamlit UI | Tested headlessly; not yet checked by hand in a browser |
+| Background runs with a pollable status | Working: a real run went from task to pull request in 4 min 05 s |
+| Opening the pull request | Working: opened (and the owner merged) a real pull request on the demo repository |
+| React web app | Tested in a real browser at desktop and phone sizes; see [Frontend](#frontend) |
 | Maven and Gradle repositories | Not supported yet (needs a sandbox image with a JDK) |
 
 ## Results
@@ -146,13 +146,14 @@ python -m venv .venv && source .venv/Scripts/activate   # bin/activate on Linux/
 pip install -r requirements-dev.txt
 python -m uvicorn app.main:app --port 8001
 
-# 5. UI (http://localhost:8501), in a third terminal
-pip install -r ui/requirements.txt
-streamlit run ui/app.py
+# 5. Web app (http://localhost:5180), in a third terminal
+cd frontend
+npm install
+npm run dev
 ```
 
-In the UI: create an account, connect GitHub, create a project for a repository
-you own, type a task and start a run.
+In the web app: create an account, connect GitHub in Settings, create a project
+for a repository you own, type a task and start a run.
 
 To use a different model, set `LLM_BASE_URL`, `LLM_API_KEY` and `LLM_MODEL` in
 `.env`. Any OpenAI-compatible endpoint works; no code changes are needed.
@@ -180,9 +181,11 @@ All endpoints except register, login and the OAuth callback need
 
 | Suite | Tests | What it needs |
 |---|---|---|
-| `services/project-service` (`./mvnw verify`) | 106 | Docker, for a throwaway PostgreSQL |
+| `services/project-service` (`./mvnw verify`) | 110 | Docker, for a throwaway PostgreSQL |
 | `services/ai-service` (`pytest`) | 138 | Nothing: the model, E2B and Langfuse are faked |
-| `ui` (`pytest`) | 9 | Nothing: the API is faked |
+| `frontend` (`npm test`) | 30 | Nothing: logic and components in jsdom |
+| `frontend` (`npm run test:e2e`) | 25, each at desktop and phone size | Chromium; the API is mocked |
+| `ui` (`pytest`) | 12 | Nothing: the API is faked |
 
 CI runs all three on every push without any secrets.
 
@@ -194,6 +197,34 @@ real repository. A task counts as solved only if the agent's own tests pass
 cd services/ai-service
 python -m evals.run --repo <owner>/<name> --max-tasks 2
 ```
+
+## Frontend
+
+The web app in [frontend/](frontend/) is React and TypeScript on Vite, with React
+Router and TanStack Query. It has no UI kit and no CSS framework: the look is a
+small set of design tokens and CSS Modules, with light and dark themes.
+
+- **Pages:** landing, sign in, create account, projects, new project, project
+  (start a run, history), run (progress, plan, diff, test attempts, analysis),
+  settings, and a not-found page.
+- **View Transitions API:** navigation cross-fades, the header stays in place,
+  and the title of the project or run you open travels from the list into the
+  page heading. Browsers without the API just navigate.
+- **Responsive:** written phone-first. A browser test loads every page at
+  390 px and fails if any of them scrolls sideways; wide content such as diffs
+  and test output scrolls inside its own box.
+- **Accessible:** real labels and error messages on form fields, keyboard
+  navigation for tabs, a skip link, status never shown by colour alone, and
+  reduced-motion respected.
+- **Live without a refresh:** a run page polls only while the run is active and
+  stops when it finishes.
+- **A correct diff after merge:** changes are compared with the file at the
+  commit the run started from, not with today's branch.
+
+The login token is kept in `localStorage`, which is simple and survives a
+reload, but is readable by any script on the page. That is acceptable for a
+demo that ships no third-party scripts; a production system would use an
+HttpOnly cookie.
 
 ## Limits
 
@@ -211,7 +242,8 @@ python -m evals.run --repo <owner>/<name> --max-tasks 2
 services/project-service/   Java control plane (API, auth, GitHub, runs)
 services/ai-service/        Python agent (analysis, plan, generate, sandbox, loop)
 services/ai-service/evals/  Evaluation tasks and harness
-ui/                         Streamlit UI
+frontend/                   React web app
+ui/                         Earlier Streamlit prototype of the UI
 demo/registration-service/  Small target repository used for demos and evals
 infrastructure/             Ollama Modelfile, E2B template, database init
 docs/architecture.md        How it works and why

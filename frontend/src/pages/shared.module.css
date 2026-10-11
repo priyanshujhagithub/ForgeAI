@@ -1,0 +1,140 @@
+/* Layout pieces shared by the signed-in pages. */
+
+.stack {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.pageHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.pageTitle {
+  /* Fits its text, so the shared-title transition moves a snug box */
+  width: fit-content;
+  max-width: 100%;
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+}
+
+.pageLede {
+  margin-top: var(--space-2);
+  max-width: 40rem;
+  color: var(--ink-2);
+}
+
+.sectionTitle {
+  font-size: var(--text-md);
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.card {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.narrow {
+  max-width: 36rem;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.formActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Label–value pairs: stacked on phones, a row of columns on wider screens */
+.meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.meta dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.meta dd {
+  margin-top: 0.15rem;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.prose {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 44rem;
+}
+
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tag {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 40rem) {
+  .meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/*
+ * A grid item is, by default, at least as wide as its widest unbreakable
+ * content. One long line of code or test output would then widen the whole
+ * page. Letting items shrink keeps wide content scrolling inside its own box.
+ */
+.stack > *,
+.prose > * {
+  min-width: 0;
+}
