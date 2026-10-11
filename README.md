@@ -185,7 +185,6 @@ All endpoints except register, login and the OAuth callback need
 | `services/ai-service` (`pytest`) | 138 | Nothing: the model, E2B and Langfuse are faked |
 | `frontend` (`npm test`) | 30 | Nothing: logic and components in jsdom |
 | `frontend` (`npm run test:e2e`) | 25, each at desktop and phone size | Chromium; the API is mocked |
-| `ui` (`pytest`) | 12 | Nothing: the API is faked |
 
 CI runs all three on every push without any secrets.
 
@@ -243,7 +242,6 @@ services/project-service/   Java control plane (API, auth, GitHub, runs)
 services/ai-service/        Python agent (analysis, plan, generate, sandbox, loop)
 services/ai-service/evals/  Evaluation tasks and harness
 frontend/                   React web app
-ui/                         Earlier Streamlit prototype of the UI
 demo/registration-service/  Small target repository used for demos and evals
 infrastructure/             Ollama Modelfile, E2B template, database init
 docs/architecture.md        How it works and why
