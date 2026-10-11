@@ -6,6 +6,8 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .analyzer import RepositoryAnalyzer
+from .config import Settings
+from .correction_loop import CorrectionLoop
 from .generator import CodeGenerator, FileTooLargeError, InvalidPlanError
 from .llm import LLMClient, LLMOutputError, LLMUnavailableError
 from .planner import TaskPlanner
@@ -24,14 +26,22 @@ from .schemas import (
     RepositorySnapshotContext,
     SandboxRunRequest,
     SandboxRunResponse,
+    SolveRequest,
+    SolveResponse,
 )
+from .tracing import Tracer
 
 app = FastAPI(title="ForgeAI AI Service")
 
 
 @lru_cache
+def get_tracer() -> Tracer:
+    return Tracer.from_settings(Settings.from_env())
+
+
+@lru_cache
 def get_llm() -> LLMClient:
-    return LLMClient()
+    return LLMClient(tracer=get_tracer())
 
 
 @lru_cache
@@ -52,6 +62,11 @@ def get_generator() -> CodeGenerator:
 @lru_cache
 def get_sandbox_runner() -> SandboxRunner:
     return E2BSandboxRunner()
+
+
+@lru_cache
+def get_correction_loop() -> CorrectionLoop:
+    return CorrectionLoop(get_generator(), get_sandbox_runner(), get_llm(), get_tracer())
 
 
 @app.exception_handler(SandboxUnavailableError)
@@ -127,3 +142,31 @@ def run_in_sandbox(
         sandbox_seconds=usage.sandbox_seconds,
         estimated_cost_usd=usage.estimated_cost_usd,
     )
+
+
+@app.post("/api/v1/solve", response_model=SolveResponse)
+def solve_task(
+    request: SolveRequest,
+    planner: TaskPlanner = Depends(get_planner),
+    loop: CorrectionLoop = Depends(get_correction_loop),
+    tracer: Tracer = Depends(get_tracer),
+):
+    """Plan (unless a plan is supplied), generate, test, and self-correct."""
+    run_input = {
+        "task": request.task,
+        "repository": f"{request.context.owner}/{request.context.repository}",
+    }
+    try:
+        with tracer.span("agent-run", input=run_input) as run:
+            plan = request.plan or planner.plan(request.context, request.task, request.analysis)
+            result = loop.run(request.context, request.task, plan, request.repository)
+            run.update(
+                output={"outcome": result.outcome, "attempts": len(result.attempts)},
+                metadata={
+                    "sandboxSeconds": result.sandbox_seconds,
+                    "estimatedCostUsd": result.estimated_cost_usd,
+                },
+            )
+    finally:
+        tracer.flush()
+    return SolveResponse(plan=plan, result=result)

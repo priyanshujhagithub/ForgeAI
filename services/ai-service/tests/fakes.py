@@ -5,7 +5,13 @@ from types import SimpleNamespace
 
 from app.config import Settings
 from app.llm import LLMClient
-from app.schemas import RepositoryFile, RepositoryMetadata, RepositorySnapshotContext
+from app.sandbox import SandboxUsage
+from app.schemas import (
+    RepositoryFile,
+    RepositoryMetadata,
+    RepositorySnapshotContext,
+    SandboxResult,
+)
 
 
 class FakeChatClient:
@@ -71,3 +77,41 @@ VALID_PLAN = {
         {"order": 2, "description": "Cover it with a test.", "files": ["tests/test_app.py"]},
     ],
 }
+
+
+class FakeSandboxSession:
+    def __init__(self, runner: "FakeSandboxRunner"):
+        self._runner = runner
+
+    def run_tests(self, changes):
+        self._runner.tested.append([change.model_copy() for change in changes])
+        return self._runner.results.pop(0)
+
+    def close(self):
+        self._runner.closed += 1
+        return SandboxUsage(sandbox_seconds=10.0, estimated_cost_usd=0.0003)
+
+
+class FakeSandboxRunner:
+    """Replays scripted sandbox results; an Exception in the script is raised by open()."""
+
+    def __init__(self, results: list):
+        self.results = list(results)
+        self.opened: list[tuple] = []
+        self.tested: list[list] = []
+        self.closed = 0
+
+    def open(self, repository, project_type, project_root=""):
+        self.opened.append((repository, project_type, project_root))
+        if isinstance(self.results[0], Exception):
+            raise self.results.pop(0)
+        return FakeSandboxSession(self)
+
+
+def sandbox_result(outcome: str = "passed", **fields) -> SandboxResult:
+    defaults = {
+        "command": "python -m pytest -q",
+        "exit_code": 0 if outcome == "passed" else 1,
+        "stdout": "3 passed" if outcome == "passed" else "FAILED tests/test_app.py::test_app",
+    }
+    return SandboxResult(outcome=outcome, **{**defaults, **fields})

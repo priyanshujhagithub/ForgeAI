@@ -4,9 +4,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# The repository root .env holds local secrets. Real environment variables win.
-_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
-load_dotenv(_ROOT_ENV, override=False)
+# Local development keeps secrets in a .env file at the repository root, so
+# look upwards for one. Real environment variables always win, and in a
+# container there is simply no file to find.
+for _directory in Path(__file__).resolve().parents:
+    if (_directory / ".env").is_file():
+        load_dotenv(_directory / ".env", override=False)
+        break
 
 
 @dataclass(frozen=True)
@@ -45,6 +49,18 @@ class Settings:
     sandbox_output_tail_chars: int = 6_000
     # Estimate only: 2 vCPU and about 0.5 GiB at E2B's published per-second rates.
     sandbox_usd_per_second: float = 0.00003
+
+    # Self-correction loop.
+    max_attempts: int = 3
+    # How much failing test output is shown to the model.
+    feedback_output_chars: int = 3_000
+
+    # Langfuse tracing. Blank keys turn tracing off.
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+    langfuse_base_url: str = ""
+    # Prompts contain repository source. Set to false to send only timings and usage.
+    tracing_capture_content: bool = True
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -103,4 +119,14 @@ class Settings:
             sandbox_usd_per_second=float(
                 os.getenv("SANDBOX_USD_PER_SECOND", defaults.sandbox_usd_per_second)
             ),
+            max_attempts=int(os.getenv("MAX_ATTEMPTS", defaults.max_attempts)),
+            feedback_output_chars=int(
+                os.getenv("FEEDBACK_OUTPUT_CHARS", defaults.feedback_output_chars)
+            ),
+            langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY", defaults.langfuse_public_key),
+            langfuse_secret_key=os.getenv("LANGFUSE_SECRET_KEY", defaults.langfuse_secret_key),
+            langfuse_base_url=os.getenv("LANGFUSE_BASE_URL")
+            or os.getenv("LANGFUSE_HOST", defaults.langfuse_base_url),
+            tracing_capture_content=os.getenv("TRACING_CAPTURE_CONTENT", "true").lower()
+            != "false",
         )

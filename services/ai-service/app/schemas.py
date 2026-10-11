@@ -140,3 +140,42 @@ class SandboxRunResponse(CamelModel):
     result: SandboxResult
     sandbox_seconds: float
     estimated_cost_usd: float
+
+
+class FailureDiagnosis(CamelModel):
+    # Field order matters: the model must state the cause before proposing a fix.
+    root_cause: str = Field(description="Why the tests failed, citing the test output.")
+    fix_strategy: str = Field(description="What to change to fix the root cause.")
+    files_to_change: list[str] = Field(description="Repository paths that must be rewritten.")
+
+
+class AttemptRecord(CamelModel):
+    number: int
+    changes: list[CodeChange]
+    sandbox_result: SandboxResult
+    # Why this attempt failed. Empty when it passed, or when no further
+    # attempt was allowed and so no diagnosis was requested.
+    diagnosis: FailureDiagnosis | None = None
+
+
+class LoopResult(CamelModel):
+    outcome: Literal["passed", "tests_failed", "sandbox_unavailable", "infrastructure_error"]
+    final_changes: list[CodeChange]
+    attempts: list[AttemptRecord]
+    sandbox_seconds: float = 0.0
+    estimated_cost_usd: float = 0.0
+    message: str | None = None
+
+
+class SolveRequest(CamelModel):
+    context: RepositorySnapshotContext
+    task: str = Field(min_length=1, max_length=2000)
+    repository: RepositoryRef
+    # Supply a plan the user already reviewed, or leave empty to plan here.
+    plan: EngineeringPlan | None = None
+    analysis: AnalysisResult | None = None
+
+
+class SolveResponse(CamelModel):
+    plan: EngineeringPlan
+    result: LoopResult

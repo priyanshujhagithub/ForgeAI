@@ -79,12 +79,15 @@ class CodeGenerator:
         *,
         earlier: list[CodeChange],
         feedback: str | None = None,
+        allow_unchanged: bool = False,
     ) -> CodeChange:
         """Write one file.
 
         `earlier` holds changes already made for this task; if it contains
         `path`, that version is the one being revised. `feedback` carries a
         failure diagnosis when a previous attempt did not pass its tests.
+        `allow_unchanged` accepts a reply identical to the current file, for
+        fixes where the caller checks that the fix as a whole changed something.
         """
         originals = {file.path: file.content for file in context.files}
         written = {change.path: change.content for change in earlier}
@@ -103,7 +106,7 @@ class CodeGenerator:
             schema=FileEdit,
             name="file_edit",
             max_tokens=self.llm.settings.generation_max_output_tokens,
-            check=lambda candidate: _edit_problems(candidate, current),
+            check=lambda candidate: _edit_problems(candidate, current, allow_unchanged),
         )
 
         return CodeChange(
@@ -168,9 +171,24 @@ class CodeGenerator:
         if current is None:
             sections.append(f"Write the new file: {path}")
         else:
+            original = next((file.content for file in context.files if file.path == path), None)
+            if original is not None and original.strip() != current.strip():
+                # An earlier attempt already rewrote this file and may have lost
+                # something. The pre-task version lets the model restore it.
+                sections.extend(
+                    [
+                        f"For reference, {path} as it was before this task:",
+                        "===== ORIGINAL CONTENT =====",
+                        original[: settings.max_file_chars],
+                        "===== END ORIGINAL CONTENT =====",
+                        "",
+                    ]
+                )
             sections.extend(
                 [
                     f"Rewrite the existing file: {path}",
+                    "Keep every existing function, class, fixture and import that the "
+                    "task does not require changing.",
                     "===== CURRENT CONTENT =====",
                     current,
                     "===== END CURRENT CONTENT =====",
@@ -206,7 +224,11 @@ def _working_tree(
     return context.model_copy(update={"files": list(files.values())})
 
 
-def _edit_problems(edit: FileEdit, current: str | None) -> list[str]:
+def _edit_problems(
+    edit: FileEdit,
+    current: str | None,
+    allow_unchanged: bool = False,
+) -> list[str]:
     content = _normalise(edit.content)
 
     if not content.strip():
@@ -215,6 +237,8 @@ def _edit_problems(edit: FileEdit, current: str | None) -> list[str]:
         return []
 
     if content.strip() == current.strip():
+        if allow_unchanged:
+            return []
         return ["content is identical to the current file; apply the planned change."]
 
     shrank = (

@@ -36,6 +36,9 @@ def test_prompt_for_an_existing_file_shows_its_current_content():
     prompt = client.requests[0]["messages"][1]["content"]
     assert "Rewrite the existing file: app.py" in prompt
     assert "===== CURRENT CONTENT =====\nprint('hi')\n===== END CURRENT CONTENT =====" in prompt
+    assert "Keep every existing function, class, fixture and import" in prompt
+    # First write: current and original are the same, so the original is not repeated.
+    assert "===== ORIGINAL CONTENT =====" not in prompt
     assert f"===== TASK =====\n{TASK}" in prompt
     assert "1. Add validation to app.py. (files: app.py)" in prompt
     # The file being rewritten is not repeated in the reference evidence.
@@ -141,3 +144,24 @@ def test_revision_starts_from_the_previous_attempt_and_includes_feedback():
     assert change.action == "modify"
     assert "===== CURRENT CONTENT =====\nprint('broken')" in prompt
     assert "NameError: name 'validate' is not defined" in prompt
+    # Regression from a real run: the first attempt dropped a test fixture and the
+    # fix could not restore it, because the model never saw the pre-task file.
+    assert "===== ORIGINAL CONTENT =====\nprint('hi')\n===== END ORIGINAL CONTENT =====" in prompt
+
+
+def test_revising_a_file_created_by_this_task_has_no_original_to_show():
+    llm, client = make_llm([{"content": "def test_app():\n    assert 1\n", "explanation": "Fix."}])
+    previous = [
+        CodeChange(
+            path="tests/test_app.py", action="create", content="broken\n", explanation=""
+        )
+    ]
+
+    change = CodeGenerator(llm).generate_file(
+        make_context(), TASK, PLAN, "tests/test_app.py", earlier=previous, feedback="SyntaxError"
+    )
+
+    prompt = client.requests[0]["messages"][1]["content"]
+    assert change.action == "create"
+    assert "===== CURRENT CONTENT =====\nbroken" in prompt
+    assert "===== ORIGINAL CONTENT =====" not in prompt

@@ -14,6 +14,7 @@ from openai import OpenAI
 from pydantic import BaseModel, ValidationError
 
 from .config import Settings
+from .tracing import Tracer
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -30,8 +31,14 @@ class LLMUnavailableError(RuntimeError):
 
 
 class LLMClient:
-    def __init__(self, client: OpenAI | None = None, settings: Settings | None = None):
+    def __init__(
+        self,
+        client: OpenAI | None = None,
+        settings: Settings | None = None,
+        tracer: Tracer | None = None,
+    ):
         self.settings = settings or Settings.from_env()
+        self.tracer = tracer or Tracer()
         self.client = client or OpenAI(
             base_url=self.settings.llm_base_url,
             api_key=self.settings.llm_api_key,
@@ -81,6 +88,20 @@ class LLMClient:
         name: str,
         max_tokens: int | None,
     ) -> str:
+        with self.tracer.generation(
+            name, model=self.settings.llm_model, input=messages
+        ) as generation:
+            content, usage = self._call_provider(messages, schema, name, max_tokens)
+            generation.update(output=content, usage=usage)
+            return content
+
+    def _call_provider(
+        self,
+        messages: list[dict],
+        schema: type[BaseModel],
+        name: str,
+        max_tokens: int | None,
+    ) -> tuple[str, dict[str, int] | None]:
         extra_body = {}
         if self.settings.llm_reasoning_effort:
             extra_body["reasoning_effort"] = self.settings.llm_reasoning_effort
@@ -117,7 +138,7 @@ class LLMClient:
             )
         if not choice.message.content:
             raise LLMOutputError(f"Model returned an empty response for '{name}'.")
-        return choice.message.content
+        return choice.message.content, _usage(response)
 
     @staticmethod
     def _parse(
@@ -137,6 +158,16 @@ class LLMClient:
 
         problems = check(value) if check else []
         return (None, problems) if problems else (value, [])
+
+
+def _usage(response) -> dict[str, int] | None:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    return {
+        "input": getattr(usage, "prompt_tokens", 0) or 0,
+        "output": getattr(usage, "completion_tokens", 0) or 0,
+    }
 
 
 def _clean(content: str) -> str:

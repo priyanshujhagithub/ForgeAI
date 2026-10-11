@@ -2,11 +2,28 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.analyzer import RepositoryAnalyzer
+from app.correction_loop import CorrectionLoop
 from app.generator import CodeGenerator
 from app.llm import LLMOutputError, LLMUnavailableError
-from app.main import app, get_analyzer, get_generator, get_planner
+from app.main import (
+    app,
+    get_analyzer,
+    get_correction_loop,
+    get_generator,
+    get_planner,
+    get_tracer,
+)
 from app.planner import TaskPlanner
-from tests.fakes import VALID_ANALYSIS, VALID_PLAN, make_context, make_llm
+from app.sandbox import SandboxUnavailableError
+from app.tracing import Tracer
+from tests.fakes import (
+    VALID_ANALYSIS,
+    VALID_PLAN,
+    FakeSandboxRunner,
+    make_context,
+    make_llm,
+    sandbox_result,
+)
 
 REQUEST_BODY = make_context().model_dump()
 
@@ -136,3 +153,68 @@ def test_generate_refuses_a_plan_that_does_not_fit_the_repository(client):
     assert response.status_code == 422
     assert "missing.py" in response.json()["detail"]
     assert fake.requests == []
+
+
+def solve(client, llm_replies, sandbox_results, **extra):
+    llm, fake = make_llm(llm_replies)
+    runner = FakeSandboxRunner(sandbox_results)
+    app.dependency_overrides[get_planner] = lambda: TaskPlanner(llm)
+    app.dependency_overrides[get_correction_loop] = lambda: CorrectionLoop(
+        CodeGenerator(llm), runner, llm
+    )
+    app.dependency_overrides[get_tracer] = lambda: Tracer()
+    body = {
+        "context": REQUEST_BODY,
+        "task": "Add validation.",
+        "repository": {
+            "cloneUrl": "https://github.com/octocat/demo.git",
+            "baseBranch": "main",
+            "accessToken": "ghs_secret_token_value",
+        },
+        **extra,
+    }
+    return client.post("/api/v1/solve", json=body), fake, runner
+
+
+APP_EDIT = {"content": "print('validated')\n", "explanation": "Validate first."}
+TEST_EDIT = {"content": "def test_app():\n    assert True\n", "explanation": "Cover it."}
+
+
+def test_solve_plans_generates_and_tests(client):
+    response, fake, runner = solve(
+        client, [VALID_PLAN, APP_EDIT, TEST_EDIT], [sandbox_result("passed")]
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["plan"] == VALID_PLAN
+    assert body["result"]["outcome"] == "passed"
+    assert [c["path"] for c in body["result"]["finalChanges"]] == ["app.py", "tests/test_app.py"]
+    assert body["result"]["attempts"][0]["sandboxResult"]["exitCode"] == 0
+    assert body["result"]["sandboxSeconds"] == 10.0
+    assert len(fake.requests) == 3
+    # The token reaches the sandbox runner and nothing else.
+    assert runner.opened[0][0].access_token == "ghs_secret_token_value"
+    assert "ghs_secret_token_value" not in response.text
+    assert all("ghs_secret_token_value" not in str(r["messages"]) for r in fake.requests)
+
+
+def test_solve_uses_a_supplied_plan_without_planning_again(client):
+    response, fake, _ = solve(
+        client, [APP_EDIT, TEST_EDIT], [sandbox_result("passed")], plan=VALID_PLAN
+    )
+
+    assert response.status_code == 200
+    assert len(fake.requests) == 2
+
+
+def test_solve_reports_an_unavailable_sandbox_as_a_result_not_an_error(client):
+    response, _, _ = solve(
+        client,
+        [VALID_PLAN, APP_EDIT, TEST_EDIT],
+        [SandboxUnavailableError("E2B_API_KEY is not set")],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["result"]["outcome"] == "sandbox_unavailable"
+    assert len(response.json()["result"]["finalChanges"]) == 2
