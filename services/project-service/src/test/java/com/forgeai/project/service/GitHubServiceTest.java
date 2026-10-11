@@ -8,6 +8,8 @@ import com.forgeai.project.dto.GitHubRepositorySummary;
 import com.forgeai.project.dto.RepositorySnapshotContext;
 import com.forgeai.project.entity.GitHubConnection;
 import com.forgeai.project.entity.Project;
+import com.forgeai.project.exception.GitHubNotConnectedException;
+import com.forgeai.project.exception.ProjectNotFoundException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.mapper.RepositorySnapshotMapper;
 import com.forgeai.project.repository.GitHubConnectionRepository;
@@ -152,7 +154,7 @@ class GitHubServiceTest {
                         () -> service.listRepositories(2L)
                 )
         )
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(GitHubNotConnectedException.class)
                 .hasMessage("GitHub account is not connected");
 
         verifyNoInteractions(gitHubClient);
@@ -304,8 +306,8 @@ class GitHubServiceTest {
                         )
                 )
         )
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Project not found");
+                .isInstanceOf(ProjectNotFoundException.class)
+                .hasMessage("Project not found with id: 5");
 
         verifyNoInteractions(connectionRepository);
         verifyNoInteractions(gitHubClient);

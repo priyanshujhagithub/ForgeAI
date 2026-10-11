@@ -3,6 +3,7 @@ package com.forgeai.project.service;
 // This is business logic around GitHub connections.
 
 import com.forgeai.project.entity.GitHubConnection;
+import com.forgeai.project.exception.GitHubNotConnectedException;
 import com.forgeai.project.repository.GitHubConnectionRepository;
 import org.springframework.stereotype.Service;
 
@@ -31,10 +32,6 @@ public class GitHubConnectionService {
 
     public GitHubConnection getConnection(Long userId){
         return gitHubConnectionRepository.findByUserId(userId)
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "GitHub account is not connected"
-                        )
-                );
+                .orElseThrow(GitHubNotConnectedException::new);
     }
 }

@@ -3,13 +3,18 @@ package com.forgeai.project.service;
 import com.forgeai.project.dto.*;
 import com.forgeai.project.entity.GitHubConnection;
 import com.forgeai.project.entity.Project;
+import com.forgeai.project.exception.GitHubNotConnectedException;
+import com.forgeai.project.exception.ProjectNotFoundException;
+import com.forgeai.project.exception.RepositoryNotConnectedException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.mapper.RepositorySnapshotMapper;
 import com.forgeai.project.repository.GitHubConnectionRepository;
 import com.forgeai.project.repository.ProjectRepository;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 @Service
@@ -36,14 +41,9 @@ public class GitHubService {
         this.repositorySnapshotMapper = repositorySnapshotMapper;
     }
 
-    public List<GitHubRepositorySummary> listRepositories(Long userID) {
+    public List<GitHubRepositorySummary> listRepositories(Long userId) {
+        GitHubConnection connection = connectionFor(userId);
 
-        GitHubConnection connection=gitHubConnectionRepository.findByUserId(userID)
-                .orElseThrow(() ->
-                        new IllegalStateException(
-                                "GitHub account is not connected"
-                        )
-                );
         return gitHubClient.listRepositories(
                 connection.getAccessToken()
         );
@@ -54,28 +54,8 @@ public class GitHubService {
             Long projectId,
             String path
     ){
-        Project project = projectRepository
-                .findByIdAndUserId(projectId,userId)
-                .orElseThrow(()->
-                        new IllegalArgumentException(
-                                "Project not found"
-                        )
-                );
-
-        if(project.getGithubOwner()==null
-            || project.getGithubRepoName()==null){
-            throw new IllegalStateException(
-                    "Project is not connected to a GitHub repository"
-            );
-        }
-
-        GitHubConnection connection =
-                gitHubConnectionRepository.findByUserId(userId)
-                .orElseThrow(()->
-                                new IllegalStateException(
-                                        "GitHub account is not connected"
-                                )
-                );
+        Project project = connectedProject(userId, projectId);
+        GitHubConnection connection = connectionFor(userId);
 
         return gitHubClient.getRepositoryContents(
                 project.getGithubOwner(),
@@ -90,51 +70,14 @@ public class GitHubService {
             Long projectId,
             String path
     ){
-        Project project = projectRepository
-                .findByIdAndUserId(projectId,userId)
-                .orElseThrow(()->
-                            new IllegalArgumentException("Project not found")
-                );
-        if(project.getGithubOwner()==null
-            || project.getGithubRepoName()==null) {
-            throw new IllegalStateException(
-                    "Project is not connected to a GitHub repository"
-            );
-        }
+        Project project = connectedProject(userId, projectId);
+        GitHubConnection connection = connectionFor(userId);
 
-        GitHubConnection connection =
-                gitHubConnectionRepository.findByUserId(userId)
-                        .orElseThrow(()->
-                                    new IllegalStateException(
-                                            "GitHub account is not connected"
-                                    )
-                        );
-
-        GitHubFileApiResponse githubFile =
-                gitHubClient.getFile(
-                        project.getGithubOwner(),
-                        project.getGithubRepoName(),
-                        path,
-                        connection.getAccessToken()
-                );
-
-        if(!"base64".equalsIgnoreCase(githubFile.getEncoding())){
-            throw new IllegalStateException(
-                    "Unsupported GitHub file encoding"
-            );
-        }
-
-        String content = new String(
-                java.util.Base64.getDecoder().decode(
-                        githubFile.getContent().replaceAll("\\s+", "")
-                ),
-                java.nio.charset.StandardCharsets.UTF_8
-        );
-
-        return new GitHubFileResponse(
-                githubFile.getPath(),
-                content,
-                githubFile.getSha()
+        return fetchFile(
+                project.getGithubOwner(),
+                project.getGithubRepoName(),
+                path,
+                connection.getAccessToken()
         );
     }
 
@@ -142,41 +85,20 @@ public class GitHubService {
             Long userId,
             Long projectId
     ){
-        Project project = projectRepository
-                .findByIdAndUserId(projectId,userId)
-                .orElseThrow(()->
-                        new IllegalArgumentException("Project not found")
-                );
-
-        if(project.getGithubOwner()==null
-            || project.getGithubRepoName()==null) {
-            throw new IllegalStateException(
-                    "GitHub repository is not connected to this project"
-            );
-        }
-
-        GitHubConnection connection = gitHubConnectionRepository
-                .findByUserId(userId)
-                .orElseThrow(()->
-                            new IllegalStateException(
-                                    "GitHub account is not connected"
-                            )
-                );
+        Project project = connectedProject(userId, projectId);
+        GitHubConnection connection = connectionFor(userId);
 
         String owner = project.getGithubOwner();
         String repository = project.getGithubRepoName();
-        String acessToken = connection.getAccessToken();
 
         List<GitHubFileResponse> files=new ArrayList<>();
         long[] totalSize ={0};
 
         collectFilesRecursively(
-                userId,
-                projectId,
                 "",
                 owner,
                 repository,
-                acessToken,
+                connection.getAccessToken(),
                 files,
                 totalSize
         );
@@ -187,13 +109,23 @@ public class GitHubService {
         );
     }
 
-    private void collectFilesRecursively(
+    public RepositorySnapshotContext getRepositoryAnalysisContext(
             Long userId,
-            Long projectId,
+            Long projectId
+    ){
+        GitHubRepositorySnapshot snapshot=
+                createRepositorySnapshot(
+                        userId,
+                        projectId
+                );
+        return repositorySnapshotMapper.toContext(snapshot);
+    }
+
+    private void collectFilesRecursively(
             String path,
             String owner,
             String repository,
-            String acessToken,
+            String accessToken,
             List<GitHubFileResponse> files,
             long[] totalSize
     ){
@@ -202,7 +134,7 @@ public class GitHubService {
                         owner,
                         repository,
                         path,
-                        acessToken
+                        accessToken
                 );
         for(GitHubContentResponse content : contents){
             if ("file".equals(content.getType())) {
@@ -221,22 +153,19 @@ public class GitHubService {
                     continue;
                 }
 
-                GitHubFileResponse file = getProjectFile(
-                        userId,
-                        projectId,
-                        content.getPath()
-                );
-
-                files.add(file);
+                files.add(fetchFile(
+                        owner,
+                        repository,
+                        content.getPath(),
+                        accessToken
+                ));
                 totalSize[0] += fileSize;
             }else if("dir".equals(content.getType())){
                 collectFilesRecursively(
-                        userId,
-                        projectId,
                         content.getPath(),
                         owner,
                         repository,
-                        acessToken,
+                        accessToken,
                         files,
                         totalSize
                 );
@@ -244,15 +173,56 @@ public class GitHubService {
         }
     }
 
-    public RepositorySnapshotContext getRepositoryAnalysisContext(
-            Long userId,
-            Long projectId
+    private GitHubFileResponse fetchFile(
+            String owner,
+            String repository,
+            String path,
+            String accessToken
     ){
-        GitHubRepositorySnapshot snapshot=
-                createRepositorySnapshot(
-                        userId,
-                        projectId
+        GitHubFileApiResponse githubFile =
+                gitHubClient.getFile(
+                        owner,
+                        repository,
+                        path,
+                        accessToken
                 );
-        return repositorySnapshotMapper.toContext(snapshot);
+
+        if(!"base64".equalsIgnoreCase(githubFile.getEncoding())){
+            throw new IllegalStateException(
+                    "Unsupported GitHub file encoding"
+            );
+        }
+
+        String content = new String(
+                Base64.getDecoder().decode(
+                        githubFile.getContent().replaceAll("\\s+", "")
+                ),
+                StandardCharsets.UTF_8
+        );
+
+        return new GitHubFileResponse(
+                githubFile.getPath(),
+                content,
+                githubFile.getSha()
+        );
+    }
+
+    // Ownership check and repository link in one place: a project the user
+    // does not own is indistinguishable from one that does not exist.
+    private Project connectedProject(Long userId, Long projectId){
+        Project project = projectRepository
+                .findByIdAndUserId(projectId,userId)
+                .orElseThrow(()-> new ProjectNotFoundException(projectId));
+
+        if(project.getGithubOwner()==null
+                || project.getGithubRepoName()==null){
+            throw new RepositoryNotConnectedException(projectId);
+        }
+        return project;
+    }
+
+    private GitHubConnection connectionFor(Long userId){
+        return gitHubConnectionRepository.findByUserId(userId)
+                .orElseThrow(GitHubNotConnectedException::new);
     }
 }

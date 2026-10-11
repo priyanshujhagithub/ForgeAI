@@ -33,7 +33,9 @@ class AnalysisResult(BaseModel):
 
     key_components: list[str] = Field(
         alias="keyComponents",
-        description="Important classes, modules, services, or components identified in the repository."
+        description=(
+            "Important classes, modules, services, or components identified in the repository."
+        ),
     )
 
     dependencies: list[str] = Field(
@@ -47,5 +49,7 @@ class AnalysisResult(BaseModel):
 
     relevant_files: list[str] = Field(
         alias="relevantFiles",
-        description="Files that are especially important for understanding or modifying this repository."
+        description=(
+            "Files that are especially important for understanding or modifying this repository."
+        ),
     )

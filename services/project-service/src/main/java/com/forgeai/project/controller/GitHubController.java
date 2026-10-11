@@ -1,7 +1,7 @@
 package com.forgeai.project.controller;
 
-import com.forgeai.project.ai.AiServiceClient;
 import com.forgeai.project.dto.*;
+import com.forgeai.project.exception.GitHubNotConnectedException;
 import com.forgeai.project.security.AuthenticatedUser;
 import com.forgeai.project.service.AiAnalysisService;
 import com.forgeai.project.service.GitHubConnectionService;
@@ -52,7 +52,7 @@ public class GitHubController {
                     true,
                     connection.getGithubUsername()
             );
-        }catch(IllegalStateException e){
+        }catch(GitHubNotConnectedException e){
             return new GitHubConnectionResponse(
                     false,
                     null
