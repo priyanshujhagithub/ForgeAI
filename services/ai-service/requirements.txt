@@ -3,3 +3,5 @@ uvicorn[standard]==0.52.4
 pydantic==2.13.5
 openai==3.24.0
 python-dotenv==1.2.3
+e2b==2.55.1
+langfuse==4.17.0

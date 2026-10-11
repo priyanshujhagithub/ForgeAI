@@ -33,6 +33,19 @@ class Settings:
     generation_evidence_budget_chars: int = 6_000
     generation_max_output_tokens: int = 3_000
 
+    # E2B sandbox. Blank key means sandbox runs report "unavailable".
+    e2b_api_key: str = ""
+    # Optional custom templates; the default image has Python and Node only.
+    e2b_template: str = ""
+    e2b_template_java: str = ""
+    # Hard lifetime: E2B destroys the sandbox itself after this, even if we crash.
+    sandbox_lifetime_seconds: int = 600
+    sandbox_setup_timeout_seconds: int = 300
+    sandbox_test_timeout_seconds: int = 240
+    sandbox_output_tail_chars: int = 6_000
+    # Estimate only: 2 vCPU and about 0.5 GiB at E2B's published per-second rates.
+    sandbox_usd_per_second: float = 0.00003
+
     @classmethod
     def from_env(cls) -> "Settings":
         defaults = cls()
@@ -67,5 +80,27 @@ class Settings:
                 os.getenv(
                     "GENERATION_MAX_OUTPUT_TOKENS", defaults.generation_max_output_tokens
                 )
+            ),
+            e2b_api_key=os.getenv("E2B_API_KEY", defaults.e2b_api_key),
+            e2b_template=os.getenv("E2B_TEMPLATE", defaults.e2b_template),
+            e2b_template_java=os.getenv("E2B_TEMPLATE_JAVA", defaults.e2b_template_java),
+            sandbox_lifetime_seconds=int(
+                os.getenv("SANDBOX_LIFETIME_SECONDS", defaults.sandbox_lifetime_seconds)
+            ),
+            sandbox_setup_timeout_seconds=int(
+                os.getenv(
+                    "SANDBOX_SETUP_TIMEOUT_SECONDS", defaults.sandbox_setup_timeout_seconds
+                )
+            ),
+            sandbox_test_timeout_seconds=int(
+                os.getenv(
+                    "SANDBOX_TEST_TIMEOUT_SECONDS", defaults.sandbox_test_timeout_seconds
+                )
+            ),
+            sandbox_output_tail_chars=int(
+                os.getenv("SANDBOX_OUTPUT_TAIL_CHARS", defaults.sandbox_output_tail_chars)
+            ),
+            sandbox_usd_per_second=float(
+                os.getenv("SANDBOX_USD_PER_SECOND", defaults.sandbox_usd_per_second)
             ),
         )

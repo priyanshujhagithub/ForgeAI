@@ -103,3 +103,40 @@ class GenerateRequest(CamelModel):
     context: RepositorySnapshotContext
     task: str = Field(min_length=1, max_length=2000)
     plan: EngineeringPlan
+
+
+class RepositoryRef(CamelModel):
+    """Where the sandbox clones from. The token is only needed for private repositories."""
+
+    clone_url: str
+    base_branch: str
+    base_sha: str | None = None
+    # repr=False keeps the token out of logs, tracebacks and traces.
+    access_token: str | None = Field(default=None, repr=False)
+
+
+class SandboxResult(CamelModel):
+    # "infrastructure_error" means the sandbox itself failed (clone, toolchain,
+    # baseline install); it says nothing about the generated code.
+    outcome: Literal["passed", "tests_failed", "infrastructure_error"]
+    command: str
+    exit_code: int | None = None
+    stdout: str = ""
+    stderr: str = ""
+    duration_seconds: float = 0.0
+    timed_out: bool = False
+    message: str | None = None
+
+
+class SandboxRunRequest(CamelModel):
+    repository: RepositoryRef
+    project_type: str
+    # Folder holding the build manifest, relative to the repository root.
+    project_root: str = ""
+    changes: list[CodeChange] = []
+
+
+class SandboxRunResponse(CamelModel):
+    result: SandboxResult
+    sandbox_seconds: float
+    estimated_cost_usd: float
