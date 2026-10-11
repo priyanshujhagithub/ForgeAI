@@ -1,0 +1,42 @@
+[
+  {
+    "id": "email-validation",
+    "task": "Reject registration with HTTP 422 when the email address is not a valid email address.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\n@pytest.mark.parametrize(\"email\", [\"not-an-email\", \"missing-domain@\", \"@missing-local.com\"])\ndef test_invalid_email_is_rejected(client, email):\n    response = client.post(\"/register\", json={\"email\": email, \"password\": \"long-enough-1\"})\n    assert response.status_code == 422\n\n\ndef test_valid_email_is_still_accepted(client):\n    response = client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"})\n    assert response.status_code == 201\n"
+  },
+  {
+    "id": "password-length",
+    "task": "Reject registration with HTTP 422 when the password is shorter than 8 characters.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_seven_character_password_is_rejected(client):\n    response = client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"1234567\"})\n    assert response.status_code == 422\n\n\ndef test_eight_character_password_is_accepted(client):\n    response = client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"12345678\"})\n    assert response.status_code == 201\n"
+  },
+  {
+    "id": "duplicate-email",
+    "task": "Reject registration with HTTP 409 when the email address is already registered.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_second_registration_with_same_email_is_a_conflict(client):\n    body = {\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"}\n    assert client.post(\"/register\", json=body).status_code == 201\n    assert client.post(\"/register\", json=body).status_code == 409\n    assert client.get(\"/users\").json() == [\"ada@example.com\"]\n\n\ndef test_different_emails_are_both_accepted(client):\n    assert client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"}).status_code == 201\n    assert client.post(\"/register\", json={\"email\": \"alan@example.com\", \"password\": \"long-enough-2\"}).status_code == 201\n"
+  },
+  {
+    "id": "get-user",
+    "task": "Add GET /users/{user_id} that returns the user's id and email as JSON, or HTTP 404 if no user has that id.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_existing_user_is_returned(client):\n    created = client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"}).json()\n    response = client.get(f\"/users/{created['id']}\")\n    assert response.status_code == 200\n    assert response.json() == {\"id\": created[\"id\"], \"email\": \"ada@example.com\"}\n\n\ndef test_unknown_user_is_not_found(client):\n    assert client.get(\"/users/999\").status_code == 404\n"
+  },
+  {
+    "id": "delete-user",
+    "task": "Add DELETE /users/{user_id} that removes the user and returns HTTP 204, or HTTP 404 if no user has that id.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_deleting_a_user_removes_them(client):\n    created = client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"}).json()\n    assert client.delete(f\"/users/{created['id']}\").status_code == 204\n    assert client.get(\"/users\").json() == []\n\n\ndef test_deleting_an_unknown_user_is_not_found(client):\n    assert client.delete(\"/users/999\").status_code == 404\n"
+  },
+  {
+    "id": "health-endpoint",
+    "task": "Add GET /health that returns HTTP 200 with the JSON body {\"status\": \"ok\"}.",
+    "acceptance": "from fastapi.testclient import TestClient\n\nfrom app.main import app\n\n\ndef test_health_reports_ok():\n    response = TestClient(app).get(\"/health\")\n    assert response.status_code == 200\n    assert response.json() == {\"status\": \"ok\"}\n"
+  },
+  {
+    "id": "user-count",
+    "task": "Add GET /users/count that returns JSON of the form {\"count\": N}, where N is the number of registered users.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_count_starts_at_zero(client):\n    assert client.get(\"/users/count\").json() == {\"count\": 0}\n\n\ndef test_count_follows_registrations(client):\n    client.post(\"/register\", json={\"email\": \"ada@example.com\", \"password\": \"long-enough-1\"})\n    client.post(\"/register\", json={\"email\": \"alan@example.com\", \"password\": \"long-enough-2\"})\n    assert client.get(\"/users/count\").json() == {\"count\": 2}\n"
+  },
+  {
+    "id": "normalise-email",
+    "task": "Store and return email addresses in lower case with surrounding whitespace removed.",
+    "acceptance": "import pytest\nfrom fastapi.testclient import TestClient\n\nfrom app.main import app, store\n\n\n@pytest.fixture\ndef client():\n    store.clear()\n    return TestClient(app)\n\n\ndef test_email_is_normalised_in_the_response_and_the_list(client):\n    response = client.post(\"/register\", json={\"email\": \"  Ada@Example.COM \", \"password\": \"long-enough-1\"})\n    assert response.status_code == 201\n    assert response.json()[\"email\"] == \"ada@example.com\"\n    assert client.get(\"/users\").json() == [\"ada@example.com\"]\n"
+  }
+]
