@@ -10,3 +10,34 @@ services:
       - "5433:5432"
     volumes:
       - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d
+
+  # The two application services are opt-in, so plain "docker compose up"
+  # still starts only the database for local development:
+  #
+  #   docker compose --profile app up --build
+  #
+  # Ollama keeps running on the host, where it can use the GPU.
+
+  ai-service:
+    profiles: ["app"]
+    build: ./services/ai-service
+    env_file: .env
+    environment:
+      LLM_BASE_URL: http://host.docker.internal:11434/v1/
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8001:8001"
+
+  project-service:
+    profiles: ["app"]
+    build: ./services/project-service
+    env_file: .env
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/forgeai
+      AI_SERVICE_BASE_URL: http://ai-service:8001
+    depends_on:
+      - postgres
+      - ai-service
+    ports:
+      - "8080:8080"
