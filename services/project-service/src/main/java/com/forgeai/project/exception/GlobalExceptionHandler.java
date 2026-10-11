@@ -18,6 +18,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(InvalidOAuthStateException.class)
+    public ProblemDetail handleInvalidOAuthState(InvalidOAuthStateException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage()
+        );
+    }
+
     @ExceptionHandler(AgentRunNotFoundException.class)
     public ProblemDetail handleRunNotFound(AgentRunNotFoundException exception){
         return ProblemDetail.forStatusAndDetail(

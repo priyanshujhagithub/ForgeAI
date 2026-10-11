@@ -60,6 +60,9 @@ class ForgeApi:
             "POST", "/api/v1/projects", json={"name": name, "description": description}
         )
 
+    def delete_project(self, project_id: int) -> None:
+        self._request("DELETE", f"/api/v1/projects/{project_id}")
+
     def connect_repository(self, project_id: int, owner: str, repository: str) -> dict:
         return self._request(
             "POST",

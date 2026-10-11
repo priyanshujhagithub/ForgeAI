@@ -16,6 +16,7 @@ from api import ApiError, ForgeApi
 
 API_URL = os.getenv("FORGEAI_API_URL", "http://localhost:8080")
 POLL_SECONDS = 5
+OAUTH_URL_REUSE_SECONDS = 300
 
 STEPS = ["QUEUED", "ANALYZING", "PLANNING", "GENERATING_AND_TESTING", "OPENING_PR", "COMPLETED"]
 STEP_LABELS = {
@@ -90,13 +91,26 @@ def sidebar_github(api: ForgeApi) -> bool:
 
     st.sidebar.write("Not connected.")
     try:
-        st.sidebar.link_button("Connect GitHub", api.github_authorization_url())
+        st.sidebar.link_button("Connect GitHub", authorization_url(api))
         st.sidebar.caption("Approve access in the tab that opens, then come back here.")
         # A button, not a page reload: reloading the page would end the sign-in session.
         st.sidebar.button("I've approved access")
     except ApiError as error:
         show_error(error)
     return False
+
+
+def authorization_url(api: ForgeApi) -> str:
+    """One OAuth URL per few minutes, not a new one on every page refresh.
+
+    Each URL carries a single-use state that the API keeps for ten minutes.
+    """
+    cached = st.session_state.get("oauth_url")
+    if cached and time.monotonic() - cached["at"] < OAUTH_URL_REUSE_SECONDS:
+        return cached["url"]
+    url = api.github_authorization_url()
+    st.session_state["oauth_url"] = {"url": url, "at": time.monotonic()}
+    return url
 
 
 def sidebar_project(api: ForgeApi) -> dict | None:
@@ -115,23 +129,61 @@ def sidebar_project(api: ForgeApi) -> dict | None:
             format_func=lambda p: f"{p['name']} ({repository_label(p)})",
         )
 
-    with st.sidebar.expander("New project"):
+    try:
+        repositories = sorted(repository["full_name"] for repository in api.repositories())
+    except ApiError as error:
+        show_error(error)
+        repositories = []
+
+    # A project whose repository link failed can be finished here, so a retry
+    # never has to create a second project.
+    if project is not None and not has_repository(project):
+        with st.sidebar.form("connect-repository"):
+            st.caption(f"'{project['name']}' has no repository yet.")
+            full_name = st.selectbox("Repository", repositories, key="connect-repo")
+            if st.form_submit_button("Connect repository") and full_name:
+                connect(api, project["id"], full_name)
+        if st.sidebar.button("Delete this project"):
+            try:
+                api.delete_project(project["id"])
+                st.rerun()
+            except ApiError as error:
+                show_error(error)
+
+    with st.sidebar.expander("New project", expanded=not projects):
         with st.form("new-project"):
             name = st.text_input("Name")
-            owner = st.text_input("Repository owner")
-            repository = st.text_input("Repository name")
+            # Chosen from the repositories GitHub reports, so the name cannot be mistyped.
+            full_name = st.selectbox("Repository", repositories, key="new-repo")
             if st.form_submit_button("Create and connect"):
-                try:
-                    created = api.create_project(name, f"{owner}/{repository}")
-                    api.connect_repository(created["id"], owner, repository)
-                    st.rerun()
-                except ApiError as error:
-                    show_error(error)
-    return project
+                if not name.strip() or not full_name:
+                    st.error("Enter a name and choose a repository.")
+                else:
+                    try:
+                        created = api.create_project(name.strip(), full_name)
+                    except ApiError as error:
+                        show_error(error)
+                    else:
+                        connect(api, created["id"], full_name)
+
+    return project if project is not None and has_repository(project) else None
+
+
+def connect(api: ForgeApi, project_id: int, full_name: str) -> None:
+    owner, _, repository = full_name.partition("/")
+    try:
+        api.connect_repository(project_id, owner, repository)
+        st.rerun()
+    except ApiError as error:
+        show_error(error)
+
+
+def has_repository(project: dict) -> bool:
+    return bool(project.get("githubOwner") and project.get("githubRepoName"))
 
 
 def repository_label(project: dict) -> str:
-    if project.get("githubOwner") and project.get("githubRepoName"):
+    if has_repository(project):
         return f"{project['githubOwner']}/{project['githubRepoName']}"
     return "no repository"
 
@@ -308,7 +360,7 @@ def main() -> None:
         return
     project = sidebar_project(api)
     if project is None:
-        st.info("Create a project and connect a repository to continue.")
+        st.info("Choose or create a project that has a repository connected to continue.")
         return
 
     start_run_form(api, project)

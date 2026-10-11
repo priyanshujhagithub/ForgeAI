@@ -76,6 +76,9 @@ COMPLETED_RUN = {
 class FakeApi:
     connected = True
     run_record = COMPLETED_RUN
+    project_list = [PROJECT]
+    connected_calls: list = []
+    created: list = []
 
     def __init__(self, base_url, token=None, client=None):
         self.token = token
@@ -87,7 +90,17 @@ class FakeApi:
         return "https://github.com/login/oauth/authorize?state=abc"
 
     def projects(self):
-        return [PROJECT]
+        return self.project_list
+
+    def repositories(self):
+        return [{"name": "demo", "full_name": "octocat/demo"}, {"full_name": "octocat/api"}]
+
+    def connect_repository(self, project_id, owner, repository):
+        self.connected_calls.append((project_id, owner, repository))
+
+    def create_project(self, name, description):
+        self.created.append(name)
+        return {"id": 9, "name": name}
 
     def runs(self, project_id):
         return [self.run_record]
@@ -103,6 +116,9 @@ class FakeApi:
 def fake_api(monkeypatch):
     monkeypatch.setattr(FakeApi, "connected", True)
     monkeypatch.setattr(FakeApi, "run_record", COMPLETED_RUN)
+    monkeypatch.setattr(FakeApi, "project_list", [PROJECT])
+    monkeypatch.setattr(FakeApi, "connected_calls", [])
+    monkeypatch.setattr(FakeApi, "created", [])
     monkeypatch.setattr(api, "ForgeApi", FakeApi)
     return FakeApi
 
@@ -166,3 +182,50 @@ def test_failed_run_explains_why_there_is_no_pull_request(fake_api, monkeypatch)
     assert not app.exception
     assert "No pull request." in text_of(app.error)
     assert "Tests still failing after 3 attempts." in text_of(app.caption)
+
+
+# --- regressions from the first manual use of the UI -------------------------
+# A mistyped repository name returned 404 from GitHub, and every retry created
+# another empty project.
+
+
+def test_repository_is_chosen_from_github_not_typed(fake_api):
+    app = render(token="jwt", email="a@b.com")
+
+    assert not app.exception
+    choices = app.selectbox(key="new-repo").options
+    assert choices == ["octocat/api", "octocat/demo"]
+    # The only free-text field left in the form is the project name.
+    assert [field.label for field in app.text_input] == ["Name"]
+
+
+def test_project_without_a_repository_can_be_connected_instead_of_recreated(
+    fake_api, monkeypatch
+):
+    unlinked = {"id": 3, "name": "Test", "githubOwner": None, "githubRepoName": None}
+    monkeypatch.setattr(FakeApi, "project_list", [unlinked])
+
+    app = render(token="jwt", email="a@b.com")
+
+    assert not app.exception
+    assert "has no repository yet" in text_of(app.caption)
+    assert "Choose or create a project that has a repository connected" in text_of(app.info)
+
+    app.selectbox(key="connect-repo").select("octocat/demo")
+    connect_button = next(b for b in app.button if b.label == "Connect repository")
+    connect_button.click().run()
+
+    assert FakeApi.connected_calls == [(3, "octocat", "demo")]
+    # No second project was created along the way.
+    assert FakeApi.created == []
+
+
+def test_new_project_needs_a_name(fake_api):
+    app = render(token="jwt", email="a@b.com")
+
+    create_button = next(b for b in app.button if b.label == "Create and connect")
+    create_button.click().run()
+
+    assert "Enter a name and choose a repository." in text_of(app.error)
+    assert FakeApi.created == []
+

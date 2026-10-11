@@ -2,6 +2,7 @@ package com.forgeai.project.controller;
 
 import com.forgeai.project.dto.*;
 import com.forgeai.project.entity.User;
+import com.forgeai.project.exception.InvalidOAuthStateException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.github.GitHubOAuthService;
 import com.forgeai.project.github.GitHubOAuthStateService;
@@ -84,7 +85,7 @@ public class AuthController {
     ){
         Long userId = gitHubOAuthStateService.consumeState(state);
         if(userId==null){
-            throw new IllegalArgumentException("Invalid OAuth state");
+            throw new InvalidOAuthStateException();
         }
         GitHubTokenResponse tokenResponse=gitHubOAuthService.exchangeCodeForAccessToken(code);
         String accessToken=tokenResponse.getAccessToken();
