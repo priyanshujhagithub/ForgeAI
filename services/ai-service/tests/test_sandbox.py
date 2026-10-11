@@ -9,6 +9,7 @@ from app.sandbox import (
     SandboxSetupError,
     SandboxUnavailableError,
     find_project_root,
+    has_tests,
 )
 from app.schemas import CodeChange, RepositoryRef
 
@@ -302,3 +303,66 @@ def test_context_manager_destroys_the_sandbox_even_when_the_body_fails():
         raise RuntimeError("caller blew up")
 
     assert sandbox.killed == 1
+
+
+# --- is there anything to test? ---------------------------------------------
+
+PACKAGE_WITH_TESTS = '{"name": "app", "scripts": {"test": "vitest run"}}'
+PACKAGE_WITHOUT_TESTS = '{"name": "app", "scripts": {"start": "node index.js"}}'
+PACKAGE_WITH_PLACEHOLDER = (
+    '{"scripts": {"test": "echo \\"Error: no test specified\\" && exit 1"}}'
+)
+
+
+@pytest.mark.parametrize(
+    ("files", "project_type", "root", "expected"),
+    [
+        ({"package.json": PACKAGE_WITH_TESTS}, "NODE", "", True),
+        ({"package.json": PACKAGE_WITHOUT_TESTS}, "NODE", "", False),
+        ({"package.json": PACKAGE_WITH_PLACEHOLDER}, "NODE", "", False),
+        ({"package.json": '{"name": "app"}'}, "NODE", "", False),
+        # Only the package the tests would run in counts.
+        ({"client/package.json": PACKAGE_WITHOUT_TESTS, "server/package.json": PACKAGE_WITH_TESTS},
+         "NODE", "client", False),
+        # A manifest that cannot be read is left for the sandbox to report.
+        ({"package.json": "{not json"}, "NODE", "", True),
+        ({"app.py": "", "tests/test_app.py": ""}, "PYTHON", "", True),
+        ({"app.py": "", "app_test.py": ""}, "PYTHON", "", True),
+        ({"app.py": "", "contest.py": "", "latest_results.py": ""}, "PYTHON", "", False),
+        ({"svc/app.py": "", "other/tests/test_x.py": ""}, "PYTHON", "svc", False),
+        ({"src/main/java/App.java": "", "src/test/java/AppTest.java": ""}, "MAVEN", "", True),
+        ({"src/main/java/App.java": ""}, "GRADLE", "", False),
+        ({"README.md": ""}, "UNKNOWN", "", False),
+        ({"index.html": "", "src/app.test.ts": ""}, "UNKNOWN", "", True),
+    ],
+)
+def test_has_tests(files, project_type, root, expected):
+    assert has_tests(files, project_type, root) is expected
+
+
+def test_npm_without_a_test_script_is_no_tests_not_a_failure():
+    missing_script = _exit(1, stderr='npm ERR! Missing script: "test"')
+    sandbox = FakeE2BSandbox({"npm test": missing_script})
+    session = open_session(sandbox, project_type="NODE")
+
+    result = session.run_tests([change("README.md")])
+
+    assert result.outcome == "no_tests"
+    assert result.message == "The test command found no tests."
+
+
+def test_pytest_collecting_nothing_is_no_tests_not_a_failure():
+    sandbox = FakeE2BSandbox({"pytest -q": 5})
+    session = open_session(sandbox)
+
+    result = session.run_tests([change()])
+
+    assert result.outcome == "no_tests"
+
+
+def test_a_real_test_failure_is_still_a_failure():
+    sandbox = FakeE2BSandbox({"pytest -q": 1})
+    session = open_session(sandbox)
+
+    assert session.run_tests([change()]).outcome == "tests_failed"
+

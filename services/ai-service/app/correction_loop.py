@@ -14,6 +14,7 @@ from .sandbox import (
     SandboxSetupError,
     SandboxUnavailableError,
     find_project_root,
+    has_tests,
 )
 from .schemas import (
     AttemptRecord,
@@ -27,6 +28,10 @@ from .schemas import (
     SandboxResult,
 )
 from .tracing import Tracer
+
+NO_TESTS_MESSAGE = (
+    "This repository has no tests, so the change could not be verified."
+)
 
 DIAGNOSIS_SYSTEM_PROMPT = (
     "You are ForgeAI, an expert software engineer debugging a failed change. "
@@ -77,6 +82,13 @@ class CorrectionLoop:
                 message=message,
             )
 
+        # Nothing to run: say so now, instead of spending attempts on a test
+        # command that can only fail for reasons unrelated to the change.
+        tree = {file.path: file.content for file in context.files}
+        tree.update({change.path: change.content for change in changes})
+        if not has_tests(tree, project_type, project_root):
+            return finish("no_tests", NO_TESTS_MESSAGE)
+
         for number in range(1, max_attempts + 1):
             with self.tracer.span(f"attempt-{number}", metadata={"attempt": number}) as span:
                 try:
@@ -96,6 +108,8 @@ class CorrectionLoop:
 
                 if result.outcome == "passed":
                     return finish("passed")
+                if result.outcome == "no_tests":
+                    return finish("no_tests", NO_TESTS_MESSAGE)
                 if result.outcome == "infrastructure_error":
                     # Nothing the model writes can fix a broken clone or toolchain.
                     return finish("infrastructure_error", result.message)

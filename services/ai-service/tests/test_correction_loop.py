@@ -202,7 +202,13 @@ def test_diagnosis_cannot_point_outside_the_repository():
 
 
 def test_tests_run_from_the_manifest_folder():
-    context = make_context({"svc/requirements.txt": "pytest", "svc/app.py": "print('hi')"})
+    context = make_context(
+        {
+            "svc/requirements.txt": "pytest",
+            "svc/app.py": "print('hi')",
+            "svc/tests/test_app.py": "def test_app(): pass",
+        }
+    )
     plan_for_nested = {
         **VALID_PLAN,
         "filesToModify": ["svc/app.py"],
@@ -255,7 +261,13 @@ def test_diagnosis_prompt_shows_the_manifest_and_says_it_installs_dependencies()
 
 
 def test_manifest_is_found_inside_a_nested_project():
-    context = make_context({"svc/requirements.txt": "pytest\n", "svc/app.py": "print('hi')"})
+    context = make_context(
+        {
+            "svc/requirements.txt": "pytest\n",
+            "svc/app.py": "print('hi')",
+            "svc/tests/test_app.py": "def test_app(): pass",
+        }
+    )
     nested_plan = EngineeringPlan.model_validate(
         {
             **VALID_PLAN,
@@ -307,4 +319,57 @@ def test_an_untouched_file_named_by_the_diagnosis_is_not_added_as_a_change():
 
     assert result.outcome == "passed"
     assert "README.md" not in contents(result.final_changes)
+
+
+# --- repositories without tests ---------------------------------------------
+# Regression from a real run: a Node project with no "test" script failed
+# `npm test` on every attempt, the model "fixed" it by editing package.json,
+# broke the JSON, and 41 minutes were spent on a README.
+
+DOCS_ONLY_PLAN = EngineeringPlan.model_validate(
+    {
+        "taskUnderstanding": "Describe the project.",
+        "filesToModify": [],
+        "filesToCreate": ["NOTES.md"],
+        "steps": [{"order": 1, "description": "Write the notes.", "files": ["NOTES.md"]}],
+    }
+)
+NOTES = {"content": "# Notes\n", "explanation": "Describe the project."}
+
+
+def test_repository_without_tests_is_reported_without_starting_a_sandbox():
+    llm, client = make_llm([NOTES])
+    runner = FakeSandboxRunner([])
+
+    result = CorrectionLoop(CodeGenerator(llm), runner, llm).run(
+        make_context(), TASK, DOCS_ONLY_PLAN, REPO
+    )
+
+    assert result.outcome == "no_tests"
+    assert "no tests" in result.message
+    assert contents(result.final_changes) == {"NOTES.md": "# Notes\n"}
+    assert result.attempts == []
+    assert runner.opened == []
+    assert result.sandbox_seconds == 0
+    assert len(client.requests) == 1  # the file itself; no diagnosis, no retries
+
+
+def test_a_change_that_adds_the_first_test_is_still_tested():
+    # make_context() has no test files; the default plan creates tests/test_app.py.
+    result, _, runner = run_loop([APP_V1, TEST_V1], [sandbox_result("passed")])
+
+    assert result.outcome == "passed"
+    assert len(runner.opened) == 1
+
+
+def test_test_command_finding_nothing_ends_the_run_as_untested_not_failed():
+    # Static detection can miss this, e.g. pytest collecting zero tests.
+    nothing = sandbox_result("no_tests", exit_code=5, stdout="no tests ran")
+
+    result, client, runner = run_loop([APP_V1, TEST_V1], [nothing])
+
+    assert result.outcome == "no_tests"
+    assert len(result.attempts) == 1
+    assert len(client.requests) == 2  # no diagnosis was requested
+    assert len(runner.opened) == 1
 

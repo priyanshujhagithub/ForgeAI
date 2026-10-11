@@ -33,6 +33,12 @@ export const STATUS: Record<RunStatus, StatusInfo> = {
     tone: 'ok',
     summary: 'The tests passed and a pull request is waiting for your review.',
   },
+  COMPLETED_UNTESTED: {
+    label: 'Pull request open, untested',
+    tone: 'warn',
+    summary:
+      'This repository has no tests, so the change could not be verified. A pull request marked untested is open for you to check by hand.',
+  },
   TESTS_FAILED: {
     label: 'Tests failed',
     tone: 'bad',
@@ -48,6 +54,11 @@ export const STATUS: Record<RunStatus, StatusInfo> = {
   FAILED: { label: 'Failed', tone: 'bad', summary: 'The run stopped before it could finish.' },
 }
 
+/** A pull request was opened, whether or not tests vouched for it. */
+export function proposed(status: RunStatus): boolean {
+  return status === 'COMPLETED' || status === 'COMPLETED_UNTESTED'
+}
+
 /**
  * How far along the happy path a run got. A run that ended badly keeps the
  * position of the last step it reached, so the tracker shows where it stopped.
@@ -55,7 +66,7 @@ export const STATUS: Record<RunStatus, StatusInfo> = {
 export function stepIndex(status: RunStatus, hasPlan: boolean, hasAnalysis: boolean): number {
   const direct = STEPS.findIndex((step) => step.status === status)
   if (direct >= 0) return direct
-  if (status === 'COMPLETED') return STEPS.length
+  if (status === 'COMPLETED' || status === 'COMPLETED_UNTESTED') return STEPS.length
   if (status === 'TESTS_FAILED' || status === 'SANDBOX_UNAVAILABLE') return 3
   // FAILED: infer from what the run managed to produce.
   if (hasPlan) return 3

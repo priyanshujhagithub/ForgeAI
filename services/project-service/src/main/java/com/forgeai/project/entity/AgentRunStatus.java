@@ -3,6 +3,8 @@ package com.forgeai.project.entity;
 // QUEUED -> ANALYZING -> PLANNING -> GENERATING_AND_TESTING -> OPENING_PR -> COMPLETED
 //
 // Terminal states other than COMPLETED:
+//   COMPLETED_UNTESTED   the repository has no tests; a pull request marked
+//                        "untested" is open for a human to check by hand
 //   TESTS_FAILED         tests still failing after the attempt limit; no pull request
 //   SANDBOX_UNAVAILABLE  changes were generated but could not be tested; no pull request
 //   FAILED               anything else (GitHub, AI service, infrastructure)
@@ -16,6 +18,7 @@ public enum AgentRunStatus {
     GENERATING_AND_TESTING(true),
     OPENING_PR(true),
     COMPLETED(false),
+    COMPLETED_UNTESTED(false),
     TESTS_FAILED(false),
     SANDBOX_UNAVAILABLE(false),
     FAILED(false);

@@ -6,6 +6,8 @@ its changes and runs the tests. Reusing the sandbox keeps E2B credit use and
 waiting time low. Generated code never runs on the host machine.
 """
 
+import json
+import re
 import shlex
 import time
 from collections.abc import Callable, Iterable
@@ -37,6 +39,10 @@ class Recipe:
     setup: str | None
     test: str
     needs_java: bool = False
+    # How the test command says "there was nothing to run", as opposed to
+    # "tests ran and failed": an exit code, or a phrase in its output.
+    no_tests_exit_codes: tuple[int, ...] = ()
+    no_tests_markers: tuple[str, ...] = ()
 
 
 RECIPES: dict[str, Recipe] = {
@@ -48,11 +54,14 @@ RECIPES: dict[str, Recipe] = {
         ),
         # Warnings are hidden so the failure itself fits in the model's context.
         test="python -m pytest -q --disable-warnings",
+        no_tests_exit_codes=(5,),  # pytest: "no tests were collected"
     ),
     "NODE": Recipe(
         manifests=("package.json",),
         setup="npm install --no-audit --no-fund",
         test="npm test",
+        # No "test" script at all, or the placeholder that `npm init` writes.
+        no_tests_markers=('Missing script: "test"', "no test specified"),
     ),
     "MAVEN": Recipe(
         manifests=("pom.xml",),
@@ -67,6 +76,38 @@ RECIPES: dict[str, Recipe] = {
         needs_java=True,
     ),
 }
+
+
+_PYTHON_TEST_FILE = re.compile(r"(^|/)(test_[^/]+|[^/]+_test)\.py$")
+_JS_TEST_FILE = re.compile(r"(^|/)[^/]+\.(test|spec)\.[cm]?[jt]sx?$")
+
+
+def has_tests(files: dict[str, str], project_type: str, project_root: str = "") -> bool:
+    """Whether there is anything for the test command to run.
+
+    `files` maps path to content for the repository with the change applied,
+    so a change that adds the first test counts. Checked before a sandbox is
+    started: a repository without tests would otherwise fail every attempt,
+    and the model would be asked to "fix" a failure that is not in its change.
+    """
+    prefix = f"{project_root}/" if project_root else ""
+    paths = [path for path in files if path.startswith(prefix)]
+    kind = project_type.upper()
+
+    if kind == "NODE":
+        try:
+            manifest = json.loads(files.get(f"{prefix}package.json", ""))
+            script = manifest.get("scripts", {}).get("test")
+        except (json.JSONDecodeError, AttributeError):
+            # Unreadable manifest: let the sandbox report what is wrong with it.
+            return True
+        return bool(script) and "no test specified" not in script
+    if kind == "PYTHON":
+        return any(_PYTHON_TEST_FILE.search(path) for path in paths)
+    if kind in ("MAVEN", "GRADLE"):
+        return any("src/test/" in path for path in paths)
+    # Unknown project type: there is no test command to run at all.
+    return any(_PYTHON_TEST_FILE.search(path) or _JS_TEST_FILE.search(path) for path in paths)
 
 
 def find_project_root(paths: Iterable[str], project_type: str) -> str:
@@ -258,9 +299,20 @@ class E2BSandboxSession:
             if install.exit_code != 0:
                 return install.model_copy(update={"outcome": "tests_failed"})
 
-        return self._run(
+        result = self._run(
             self._recipe.test, self._workdir, self._settings.sandbox_test_timeout_seconds
         )
+        if self._found_nothing_to_run(result):
+            return result.model_copy(
+                update={"outcome": "no_tests", "message": "The test command found no tests."}
+            )
+        return result
+
+    def _found_nothing_to_run(self, result: SandboxResult) -> bool:
+        if result.exit_code in self._recipe.no_tests_exit_codes:
+            return True
+        output = f"{result.stdout}\n{result.stderr}"
+        return any(marker in output for marker in self._recipe.no_tests_markers)
 
     def close(self) -> SandboxUsage:
         """Destroy the sandbox. Safe to call more than once."""

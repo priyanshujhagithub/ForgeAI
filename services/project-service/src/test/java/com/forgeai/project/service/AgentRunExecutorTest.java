@@ -163,6 +163,30 @@ class AgentRunExecutorTest {
     }
 
     @Test
+    void repositoryWithoutTestsGetsAPullRequestMarkedUntested() {
+        givenSolveOutcome(
+                "no_tests",
+                "This repository has no tests, so the change could not be verified."
+        );
+        when(pullRequestService.open(any(), any(), any())).thenReturn(
+                new PullRequestService.OpenedPullRequest(
+                        "forgeai/task-1234abcd",
+                        8,
+                        "https://github.com/octocat/demo/pull/8"
+                )
+        );
+
+        executor.execute(RUN_ID);
+
+        assertThat(run.getStatus()).isEqualTo(AgentRunStatus.COMPLETED_UNTESTED);
+        assertThat(run.getStatus().isActive()).isFalse();
+        assertThat(run.getPullRequestUrl())
+                .isEqualTo("https://github.com/octocat/demo/pull/8");
+        // The reason stays on the run, so the app can say why it is untested.
+        assertThat(run.getErrorMessage()).contains("no tests");
+    }
+
+    @Test
     void failingTestsEndTheRunWithoutAPullRequest() {
         givenSolveOutcome("tests_failed", "Tests still failing after 3 attempts.");
 

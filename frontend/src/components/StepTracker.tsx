@@ -1,4 +1,4 @@
-import { STEPS, stepIndex } from '../lib/runStatus'
+import { proposed, STEPS, stepIndex } from '../lib/runStatus'
 import type { Run } from '../lib/types'
 import styles from './StepTracker.module.css'
 
@@ -10,7 +10,7 @@ type StepState = 'done' | 'current' | 'stopped' | 'todo'
  */
 export function StepTracker({ run }: { run: Run }) {
   const reached = stepIndex(run.status, run.plan !== null, run.analysis !== null)
-  const endedBadly = !run.active && run.status !== 'COMPLETED'
+  const endedBadly = !run.active && !proposed(run.status)
 
   function stateOf(index: number): StepState {
     if (index < reached) return 'done'

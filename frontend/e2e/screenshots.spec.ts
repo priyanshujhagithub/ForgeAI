@@ -1,5 +1,5 @@
 import { test } from '@playwright/test'
-import { activeRun, completedRun, failedRun, mockApi, signIn } from './mockApi'
+import { activeRun, completedRun, failedRun, mockApi, signIn, untestedRun } from './mockApi'
 
 // Captures every page at desktop and phone size, in light and dark, for visual
 // review. Run with: npx playwright test screenshots
@@ -68,6 +68,14 @@ test('run: in progress', async ({ page }, info) => {
   await page.goto(`/app/runs/${activeRun.id}`)
   await page.getByText('In progress', { exact: true }).waitFor()
   await page.screenshot({ path: shot(`${info.project.name}-light-run-active.png`), fullPage: true })
+})
+
+test('run: untested pull request', async ({ page }, info) => {
+  await signIn(page)
+  await mockApi(page)
+  await page.goto(`/app/runs/${untestedRun.id}`)
+  await page.getByText('Pull request open, untested').waitFor()
+  await page.screenshot({ path: shot(`${info.project.name}-light-run-untested.png`), fullPage: true })
 })
 
 test('run: tests failed', async ({ page }, info) => {

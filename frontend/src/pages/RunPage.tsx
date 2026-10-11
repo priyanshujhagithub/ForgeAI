@@ -16,7 +16,7 @@ import {
   shortSha,
 } from '../lib/format'
 import { useProject, useRun } from '../lib/queries'
-import { STATUS } from '../lib/runStatus'
+import { proposed, STATUS } from '../lib/runStatus'
 import type { Analysis, Attempt, Plan, Run } from '../lib/types'
 import { NotFound } from './NotFound'
 import shared from './shared.module.css'
@@ -79,7 +79,13 @@ export function RunPage() {
       >
         {selected === 'plan' && <PlanPanel plan={data.plan} active={data.active} />}
         {selected === 'changes' && <ChangesPanel run={data} />}
-        {selected === 'attempts' && <AttemptsPanel attempts={attempts} active={data.active} />}
+        {selected === 'attempts' && (
+          <AttemptsPanel
+            attempts={attempts}
+            active={data.active}
+            noTests={data.result?.outcome === 'no_tests'}
+          />
+        )}
         {selected === 'analysis' && <AnalysisPanel analysis={data.analysis} active={data.active} />}
       </Tabs>
     </div>
@@ -105,11 +111,13 @@ function Outcome({ run }: { run: Run }) {
   return (
     <div className={styles.outcome}>
       <Notice tone={tone} title={summary} role="status">
-        {run.errorMessage}
+        {/* For an untested run the summary already says why; do not repeat it. */}
+        {run.status === 'COMPLETED_UNTESTED' ? null : run.errorMessage}
       </Notice>
       {run.pullRequestUrl && (
         <ButtonAnchor href={run.pullRequestUrl} variant="primary" size="lg">
-          Review pull request #{run.pullRequestNumber}
+          {run.status === 'COMPLETED_UNTESTED' ? 'Check' : 'Review'} pull request #
+          {run.pullRequestNumber}
         </ButtonAnchor>
       )}
     </div>
@@ -158,7 +166,7 @@ function RunFacts({
           <dd className="mono">{attempts} of 3</dd>
         </div>
       )}
-      {run.sandboxSeconds !== null && (
+      {run.sandboxSeconds !== null && run.sandboxSeconds > 0 && (
         <div>
           <dt>Sandbox</dt>
           <dd className="mono">
@@ -228,7 +236,7 @@ function ChangesPanel({ run }: { run: Run }) {
 
   return (
     <div>
-      {run.status !== 'COMPLETED' && !run.active && (
+      {!proposed(run.status) && !run.active && (
         <div className={styles.caution}>
           <Notice tone="warn" title="These changes were not proposed">
             They are the last version the agent produced. They did not pass the tests, so no
@@ -248,7 +256,23 @@ function ChangesPanel({ run }: { run: Run }) {
   )
 }
 
-function AttemptsPanel({ attempts, active }: { attempts: Attempt[]; active: boolean }) {
+function AttemptsPanel({
+  attempts,
+  active,
+  noTests,
+}: {
+  attempts: Attempt[]
+  active: boolean
+  noTests: boolean
+}) {
+  if (attempts.length === 0 && noTests) {
+    return (
+      <p className="muted">
+        No tests were run. This repository has no test command or test files, so there was
+        nothing to check the change against.
+      </p>
+    )
+  }
   if (attempts.length === 0) return <Pending active={active} what="a test run" />
 
   return (
@@ -265,6 +289,7 @@ function AttemptsPanel({ attempts, active }: { attempts: Attempt[]; active: bool
 const OUTCOME = {
   passed: { label: 'Tests passed', tone: 'ok' },
   tests_failed: { label: 'Tests failed', tone: 'bad' },
+  no_tests: { label: 'No tests found', tone: 'warn' },
   infrastructure_error: { label: 'Sandbox error', tone: 'warn' },
 } as const
 

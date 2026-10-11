@@ -109,9 +109,14 @@ public class AgentRunExecutor {
             r.setEstimatedCostUsd(result.getEstimatedCostUsd());
         });
 
-        // 4. Only changes whose tests passed are proposed to the repository.
+        // 4. Propose the change. Tests that ran must have passed. A repository
+        //    with no tests at all still gets a pull request, marked untested;
+        //    failing tests or an unavailable sandbox never do.
         switch (result.getOutcome()) {
-            case "passed" -> openPullRequest(runId, plan, result);
+            case "passed" ->
+                    openPullRequest(runId, plan, result, AgentRunStatus.COMPLETED);
+            case "no_tests" ->
+                    openPullRequest(runId, plan, result, AgentRunStatus.COMPLETED_UNTESTED);
             case "tests_failed" ->
                     finish(runId, AgentRunStatus.TESTS_FAILED, result.getMessage());
             case "sandbox_unavailable" ->
@@ -124,7 +129,8 @@ public class AgentRunExecutor {
     private void openPullRequest(
             UUID runId,
             EngineeringPlanResponse plan,
-            LoopResultResponse result
+            LoopResultResponse result,
+            AgentRunStatus finalStatus
     ) {
         AgentRun run = update(runId, r -> r.setStatus(AgentRunStatus.OPENING_PR));
 
@@ -136,7 +142,7 @@ public class AgentRunExecutor {
             r.setPullRequestNumber(pullRequest.number());
             r.setPullRequestUrl(pullRequest.url());
         });
-        finish(runId, AgentRunStatus.COMPLETED, null);
+        finish(runId, finalStatus, result.getMessage());
     }
 
     private void finish(UUID runId, AgentRunStatus status, String message) {

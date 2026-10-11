@@ -54,7 +54,7 @@ export interface CodeChange {
 }
 
 export interface SandboxResult {
-  outcome: 'passed' | 'tests_failed' | 'infrastructure_error'
+  outcome: 'passed' | 'tests_failed' | 'no_tests' | 'infrastructure_error'
   command: string
   exitCode: number | null
   stdout: string
@@ -78,7 +78,12 @@ export interface Attempt {
 }
 
 export interface LoopResult {
-  outcome: 'passed' | 'tests_failed' | 'sandbox_unavailable' | 'infrastructure_error'
+  outcome:
+    | 'passed'
+    | 'tests_failed'
+    | 'no_tests'
+    | 'sandbox_unavailable'
+    | 'infrastructure_error'
   finalChanges: CodeChange[]
   attempts: Attempt[]
   sandboxSeconds: number
@@ -93,6 +98,7 @@ export type RunStatus =
   | 'GENERATING_AND_TESTING'
   | 'OPENING_PR'
   | 'COMPLETED'
+  | 'COMPLETED_UNTESTED'
   | 'TESTS_FAILED'
   | 'SANDBOX_UNAVAILABLE'
   | 'FAILED'

@@ -55,6 +55,14 @@ describe('StepTracker', () => {
     }
   })
 
+  it('shows every step done when an untested pull request was opened', () => {
+    render(<StepTracker run={run({ status: 'COMPLETED_UNTESTED', active: false, plan })} />)
+
+    for (const step of screen.getAllByRole('listitem')) {
+      expect(step).toHaveTextContent('(done)')
+    }
+  })
+
   it('shows where a failed run stopped', () => {
     render(<StepTracker run={run({ status: 'TESTS_FAILED', active: false, plan })} />)
 

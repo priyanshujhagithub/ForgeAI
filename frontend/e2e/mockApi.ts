@@ -210,6 +210,38 @@ export const failedRun = {
   finishedAt: minutesAgo(178),
 }
 
+export const untestedRun = {
+  ...baseRun,
+  id: '5c7d2e11-0000-4000-8000-000000000004',
+  task: 'Add a README that explains what this project does.',
+  status: 'COMPLETED_UNTESTED',
+  active: false,
+  result: {
+    outcome: 'no_tests',
+    finalChanges: [
+      {
+        path: 'NOTES.md',
+        action: 'create',
+        content: '# Registration service\n\nRegisters users and keeps them in memory.\n',
+        explanation: 'Describe the project.',
+      },
+    ],
+    attempts: [],
+    sandboxSeconds: 0,
+    estimatedCostUsd: 0,
+    message: 'This repository has no tests, so the change could not be verified.',
+  },
+  branchName: 'forgeai/task-5c7d2e11',
+  pullRequestNumber: 3,
+  pullRequestUrl: 'https://github.com/octocat/registration-service/pull/3',
+  errorMessage: 'This repository has no tests, so the change could not be verified.',
+  sandboxSeconds: 0,
+  estimatedCostUsd: 0,
+  createdAt: minutesAgo(12),
+  updatedAt: minutesAgo(9),
+  finishedAt: minutesAgo(9),
+}
+
 export const activeRun = {
   ...baseRun,
   id: '9a0e44b2-0000-4000-8000-000000000003',
@@ -265,7 +297,7 @@ interface MockOptions {
 
 export async function mockApi(page: Page, options: MockOptions = {}) {
   const { connected = true, runs = [completedRun, failedRun], emptyProjects = false } = options
-  const allRuns = [completedRun, failedRun, activeRun]
+  const allRuns = [completedRun, failedRun, activeRun, untestedRun]
 
   const json = (route: Route, body: unknown, status = 200) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })

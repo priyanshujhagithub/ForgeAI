@@ -118,7 +118,8 @@ class RepositoryRef(CamelModel):
 class SandboxResult(CamelModel):
     # "infrastructure_error" means the sandbox itself failed (clone, toolchain,
     # baseline install); it says nothing about the generated code.
-    outcome: Literal["passed", "tests_failed", "infrastructure_error"]
+    # "no_tests" means the test command found nothing to run.
+    outcome: Literal["passed", "tests_failed", "no_tests", "infrastructure_error"]
     command: str
     exit_code: int | None = None
     stdout: str = ""
@@ -159,7 +160,10 @@ class AttemptRecord(CamelModel):
 
 
 class LoopResult(CamelModel):
-    outcome: Literal["passed", "tests_failed", "sandbox_unavailable", "infrastructure_error"]
+    # "no_tests": the repository has no tests, so the changes are unverified.
+    outcome: Literal[
+        "passed", "tests_failed", "no_tests", "sandbox_unavailable", "infrastructure_error"
+    ]
     final_changes: list[CodeChange]
     attempts: list[AttemptRecord]
     sandbox_seconds: float = 0.0

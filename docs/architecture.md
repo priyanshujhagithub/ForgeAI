@@ -74,16 +74,18 @@ stateDiagram-v2
     QUEUED --> ANALYZING
     ANALYZING --> PLANNING
     PLANNING --> GENERATING_AND_TESTING
-    GENERATING_AND_TESTING --> OPENING_PR: tests passed
+    GENERATING_AND_TESTING --> OPENING_PR: tests passed, or none exist
     GENERATING_AND_TESTING --> TESTS_FAILED: attempts exhausted
     GENERATING_AND_TESTING --> SANDBOX_UNAVAILABLE: no sandbox
-    OPENING_PR --> COMPLETED
+    OPENING_PR --> COMPLETED: tested
+    OPENING_PR --> COMPLETED_UNTESTED: no tests in the repository
     QUEUED --> FAILED
     ANALYZING --> FAILED
     PLANNING --> FAILED
     GENERATING_AND_TESTING --> FAILED
     OPENING_PR --> FAILED
     COMPLETED --> [*]
+    COMPLETED_UNTESTED --> [*]
     TESTS_FAILED --> [*]
     SANDBOX_UNAVAILABLE --> [*]
     FAILED --> [*]
@@ -115,7 +117,8 @@ none of it is trusted until it has been checked.
 | "... rest of code" placeholders, truncated files | Detected and sent back for repair; files too large for the model context are refused, not truncated |
 | Instructions hidden in repository files | System prompts mark repository content and test output as untrusted data |
 | Generated code doing damage | It only ever runs inside an E2B sandbox, never on the host |
-| A bad change reaching the repository | Only changes whose tests passed are proposed, on a new branch, as a pull request a human must merge |
+| A bad change reaching the repository | Changes are only ever proposed on a new branch, as a pull request a human must merge. Failing tests mean no pull request at all |
+| A repository with no tests | Detected before a sandbox is started. The pull request is still opened, but its title starts with `[Untested]` and its body opens with a warning |
 
 ## Design decisions
 

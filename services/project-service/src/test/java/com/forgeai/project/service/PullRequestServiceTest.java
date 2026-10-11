@@ -146,6 +146,67 @@ class PullRequestServiceTest {
                 .contains("review it before merging");
     }
 
+    @Test
+    void body_shouldWarnFirstWhenNothingWasTested() {
+        LoopResultResponse untested = new LoopResultResponse();
+        untested.setOutcome("no_tests");
+        untested.setFinalChanges(List.of(
+                change("README.md", "create", "# Demo\n", "Describe the project.")
+        ));
+        untested.setAttempts(List.of());
+
+        String body = PullRequestService.body("Add a README", plan(), untested);
+
+        assertThat(body)
+                .startsWith("> [!WARNING]\n> **Not tested.**")
+                .contains("Check it by hand before merging.")
+                .contains("## Test attempts\n\nNone. No tests were found to run.")
+                .contains("- `README.md` (create): Describe the project.")
+                .contains("review it before merging");
+    }
+
+    @Test
+    void body_shouldNotWarnWhenTestsPassed() {
+        assertThat(PullRequestService.body("Add input validation", plan(), result()))
+                .doesNotContain("Not tested");
+    }
+
+    @Test
+    void open_shouldPrefixTheTitleOfAnUntestedPullRequest() {
+        ProjectService projectService = mock(ProjectService.class);
+        GitHubConnectionService connectionService = mock(GitHubConnectionService.class);
+        GitHubClient gitHubClient = mock(GitHubClient.class);
+
+        Project project = new Project();
+        project.setGithubOwner("octocat");
+        project.setGithubRepoName("demo");
+        GitHubConnection connection = new GitHubConnection();
+        connection.setAccessToken(TOKEN);
+
+        when(projectService.getProject(5L, 2L)).thenReturn(project);
+        when(connectionService.getConnection(2L)).thenReturn(connection);
+        when(gitHubClient.createPullRequest(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new GitHubPullRequestResponse());
+
+        LoopResultResponse untested = new LoopResultResponse();
+        untested.setOutcome("no_tests");
+        untested.setFinalChanges(List.of());
+        untested.setAttempts(List.of());
+
+        new PullRequestService(projectService, connectionService, gitHubClient)
+                .open(run(), plan(), untested);
+
+        org.mockito.Mockito.verify(gitHubClient).createPullRequest(
+                eq("octocat"),
+                eq("demo"),
+                eq("[Untested] Add input validation"),
+                contains("**Not tested.**"),
+                eq("forgeai/task-1234abcd"),
+                eq("main"),
+                eq(TOKEN)
+        );
+    }
+
     private static AgentRun run() {
         AgentRun run = new AgentRun();
         run.setId(RUN_ID);

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { activeRun, completedRun, failedRun, mockApi, signIn } from './mockApi'
+import { activeRun, completedRun, failedRun, mockApi, signIn, untestedRun } from './mockApi'
 
 // The real app in a real browser, at desktop and phone sizes, against a mocked API.
 
@@ -17,6 +17,7 @@ const PAGES = [
   `/app/runs/${completedRun.id}?tab=analysis`,
   `/app/runs/${failedRun.id}`,
   `/app/runs/${activeRun.id}`,
+  `/app/runs/${untestedRun.id}?tab=attempts`,
   '/app/settings',
   '/app/does-not-exist',
 ]
@@ -157,6 +158,24 @@ test.describe('working with runs', () => {
 
     await page.reload()
     await expect(page.getByText('Python FastAPI service')).toBeVisible()
+  })
+
+  test('a repository without tests gets a pull request that is clearly untested', async ({
+    page,
+  }) => {
+    await signIn(page)
+    await mockApi(page)
+    await page.goto(`/app/runs/${untestedRun.id}?tab=attempts`)
+
+    await expect(page.getByText('Pull request open, untested')).toBeVisible()
+    await expect(page.getByText('could not be verified').first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /Check pull request #\s*3/ })).toBeVisible()
+    await expect(page.getByText('No tests were run.')).toBeVisible()
+    // Every step completed: this is not shown as a failure.
+    await expect(page.getByText('(stopped here)')).toHaveCount(0)
+
+    await page.getByRole('tab', { name: /Changes/ }).click()
+    await expect(page.getByText('These changes were not proposed')).toHaveCount(0)
   })
 
   test('a failed run says plainly that nothing was proposed', async ({ page }) => {

@@ -38,7 +38,7 @@ const SAFEGUARDS = [
   },
   {
     title: 'Your tests are the judge',
-    text: 'A change is proposed only when the repository’s own tests pass. If they still fail after three attempts, the run stops and says so.',
+    text: 'If the tests still fail after three attempts, nothing is proposed. A repository with no tests at all still gets a pull request, clearly marked untested.',
   },
   {
     title: 'A person decides',
