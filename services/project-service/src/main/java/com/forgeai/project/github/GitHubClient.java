@@ -95,19 +95,22 @@ public class GitHubClient {
                 );
     }
 
+    // ref is a branch name or commit SHA; null means the default branch.
     public GitHubFileApiResponse getFile(
             String owner,
             String repository,
             String path,
+            String ref,
             String accessToken
     ){
         return restClient.get()
-                .uri(
-                        "/repos/{owner}/{repository}/contents/{path}",
-                        owner,
-                        repository,
-                        path
-                )
+                .uri(builder -> {
+                    builder.path("/repos/{owner}/{repository}/contents/{path}");
+                    if (ref != null) {
+                        builder.queryParam("ref", ref);
+                    }
+                    return builder.build(owner, repository, path);
+                })
                 .header("Authorization", "Bearer " + accessToken)
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()

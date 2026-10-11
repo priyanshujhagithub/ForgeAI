@@ -115,6 +115,38 @@ class GitHubClientTest {
     }
 
     @Test
+    void getFile_shouldReadAtTheGivenCommit() {
+        server.expect(requestTo(API + "/repos/octocat/demo/contents/README.md?ref=abc1234"))
+                .andExpect(method(HttpMethod.GET))
+                .andExpect(header("Authorization", "Bearer " + TOKEN))
+                .andRespond(withSuccess(
+                        """
+                        {"path": "README.md", "sha": "b1", "encoding": "base64", "content": "aGk="}
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertThat(gitHubClient.getFile("octocat", "demo", "README.md", "abc1234", TOKEN).getSha())
+                .isEqualTo("b1");
+        server.verify();
+    }
+
+    @Test
+    void getFile_shouldReadTheDefaultBranchWhenNoCommitIsGiven() {
+        server.expect(requestTo(API + "/repos/octocat/demo/contents/README.md"))
+                .andRespond(withSuccess(
+                        """
+                        {"path": "README.md", "sha": "b2", "encoding": "base64", "content": "aGk="}
+                        """,
+                        MediaType.APPLICATION_JSON
+                ));
+
+        assertThat(gitHubClient.getFile("octocat", "demo", "README.md", null, TOKEN).getSha())
+                .isEqualTo("b2");
+        server.verify();
+    }
+
+    @Test
     void createTree_shouldSendContentForWritesAndNullShaForDeletes() {
         Map<String, Object> write = new HashMap<>();
         write.put("path", "app/main.py");

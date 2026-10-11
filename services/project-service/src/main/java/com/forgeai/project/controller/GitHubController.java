@@ -79,14 +79,16 @@ public class GitHubController {
     @GetMapping("/projects/{projectId}/file")
     public GitHubFileResponse getProjectFile(
             @PathVariable Long projectId,
-            @RequestParam(defaultValue = "")String path
+            @RequestParam(defaultValue = "")String path,
+            @RequestParam(required = false) String ref
     ){
         AuthenticatedUser user = CurrentUser.get();
 
         return gitHubService.getProjectFile(
                 user.userId(),
                 projectId,
-                path
+                path,
+                ref
         );
     }
 

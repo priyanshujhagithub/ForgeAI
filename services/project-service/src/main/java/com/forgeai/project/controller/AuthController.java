@@ -2,7 +2,6 @@ package com.forgeai.project.controller;
 
 import com.forgeai.project.dto.*;
 import com.forgeai.project.entity.User;
-import com.forgeai.project.exception.InvalidOAuthStateException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.github.GitHubOAuthService;
 import com.forgeai.project.github.GitHubOAuthStateService;
@@ -12,6 +11,7 @@ import com.forgeai.project.security.CurrentUser;
 import com.forgeai.project.service.GitHubConnectionService;
 import com.forgeai.project.service.UserService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +26,7 @@ public class AuthController {
     private final GitHubClient gitHubClient;
     private final GitHubOAuthStateService gitHubOAuthStateService;
     private final GitHubConnectionService gitHubConnectionService;
+    private final String frontendUrl;
 
     public AuthController(
             UserService userService,
@@ -33,7 +34,8 @@ public class AuthController {
             GitHubOAuthService gitHubOAuthService,
             GitHubClient gitHubClient,
             GitHubOAuthStateService gitHubOAuthStateService,
-            GitHubConnectionService gitHubConnectionService
+            GitHubConnectionService gitHubConnectionService,
+            @Value("${forgeai.frontend-url}") String frontendUrl
     ) {
         this.userService = userService;
         this.userMapper = userMapper;
@@ -41,6 +43,7 @@ public class AuthController {
         this.gitHubClient = gitHubClient;
         this.gitHubOAuthStateService = gitHubOAuthStateService;
         this.gitHubConnectionService = gitHubConnectionService;
+        this.frontendUrl = frontendUrl;
     }
 
     @PostMapping("/register")
@@ -78,14 +81,18 @@ public class AuthController {
         );
     }
 
+    // GitHub sends the browser here after the user approves access. This is a
+    // page navigation, not an API call, so the answer is a redirect back to
+    // the web app, which shows the result.
     @GetMapping("/github/callback")
-    public String githubCallback(
+    public ResponseEntity<Void> githubCallback(
             @RequestParam String code,
             @RequestParam String state
     ){
         Long userId = gitHubOAuthStateService.consumeState(state);
         if(userId==null){
-            throw new InvalidOAuthStateException();
+            // Unknown, expired or already used: nothing is stored.
+            return redirectToSettings("error");
         }
         GitHubTokenResponse tokenResponse=gitHubOAuthService.exchangeCodeForAccessToken(code);
         String accessToken=tokenResponse.getAccessToken();
@@ -96,6 +103,13 @@ public class AuthController {
                 githubUser.getLogin(),
                 accessToken
         );
-        return "GitHub account connected: " + githubUser.getLogin();
+        return redirectToSettings("connected");
+    }
+
+    private ResponseEntity<Void> redirectToSettings(String outcome){
+        return ResponseEntity
+                .status(302)
+                .header("Location", frontendUrl + "/app/settings?github=" + outcome)
+                .build();
     }
 }

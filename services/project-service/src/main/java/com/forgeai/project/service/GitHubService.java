@@ -10,15 +10,20 @@ import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.mapper.RepositorySnapshotMapper;
 import com.forgeai.project.repository.GitHubConnectionRepository;
 import com.forgeai.project.repository.ProjectRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Service
 public class GitHubService {
+
+    private static final Pattern COMMIT_SHA = Pattern.compile("[0-9a-fA-F]{7,40}");
 
     private final GitHubConnectionRepository gitHubConnectionRepository;
     private final GitHubClient gitHubClient;
@@ -65,11 +70,22 @@ public class GitHubService {
         );
     }
 
+    // ref pins the read to one commit. A run's diff is computed against the
+    // commit the run started from, so it stays correct after the pull request
+    // is merged and the branch has moved on.
     public GitHubFileResponse getProjectFile(
             Long userId,
             Long projectId,
-            String path
+            String path,
+            String ref
     ){
+        if (ref != null && !COMMIT_SHA.matcher(ref).matches()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "ref must be a commit SHA"
+            );
+        }
+
         Project project = connectedProject(userId, projectId);
         GitHubConnection connection = connectionFor(userId);
 
@@ -77,6 +93,7 @@ public class GitHubService {
                 project.getGithubOwner(),
                 project.getGithubRepoName(),
                 path,
+                ref,
                 connection.getAccessToken()
         );
     }
@@ -225,6 +242,7 @@ public class GitHubService {
             String owner,
             String repository,
             String path,
+            String ref,
             String accessToken
     ){
         GitHubFileApiResponse githubFile =
@@ -232,6 +250,7 @@ public class GitHubService {
                         owner,
                         repository,
                         path,
+                        ref,
                         accessToken
                 );
 
