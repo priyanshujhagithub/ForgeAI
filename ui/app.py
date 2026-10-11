@@ -91,7 +91,9 @@ def sidebar_github(api: ForgeApi) -> bool:
     st.sidebar.write("Not connected.")
     try:
         st.sidebar.link_button("Connect GitHub", api.github_authorization_url())
-        st.sidebar.caption("Approve access on GitHub, then reload this page.")
+        st.sidebar.caption("Approve access in the tab that opens, then come back here.")
+        # A button, not a page reload: reloading the page would end the sign-in session.
+        st.sidebar.button("I've approved access")
     except ApiError as error:
         show_error(error)
     return False
