@@ -30,9 +30,15 @@ def fetch_public_snapshot(
     owner: str,
     repository: str,
     branch: str,
+    sha: str | None = None,
 ) -> tuple[RepositorySnapshotContext, RepositoryRef]:
+    """Read the repository at `sha`, or at the head of `branch` when no commit is given.
+
+    Pinning a commit keeps results comparable between models: the tasks are
+    always attempted against the same starting code.
+    """
     api = f"https://api.github.com/repos/{owner}/{repository}"
-    head = _get_json(f"{api}/git/ref/heads/{branch}")["object"]["sha"]
+    head = sha or _get_json(f"{api}/git/ref/heads/{branch}")["object"]["sha"]
     tree = _get_json(f"{api}/git/trees/{head}?recursive=1")["tree"]
 
     blobs = [

@@ -43,7 +43,7 @@ class LLMClient:
             base_url=self.settings.llm_base_url,
             api_key=self.settings.llm_api_key,
             timeout=self.settings.llm_timeout_seconds,
-            max_retries=0,
+            max_retries=self.settings.llm_max_retries,
         )
 
     def complete_structured(

@@ -2,6 +2,7 @@
 
     python -m evals.run --repo priyanshujhagithub/demo --branch main
     python -m evals.run --repo owner/name --max-tasks 2
+    python -m evals.run --repo owner/name --sha <commit>   # same starting code every time
 
 A task counts as solved only if the agent's own loop passed AND a hidden
 acceptance test, which the agent never sees, also passes on top of its final
@@ -176,6 +177,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--repo", required=True, help="Public GitHub repository, owner/name")
     parser.add_argument("--branch", default="main")
+    parser.add_argument("--sha", help="Commit to start from (default: the branch head)")
     parser.add_argument("--max-tasks", type=int, help="Run at most this many tasks")
     parser.add_argument("--task", action="append", help="Run only this task id (repeatable)")
     args = parser.parse_args(argv)
@@ -190,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     owner, _, name = args.repo.partition("/")
-    context, repository = fetch_public_snapshot(owner, name, args.branch)
+    context, repository = fetch_public_snapshot(owner, name, args.branch, args.sha)
 
     settings = Settings.from_env()
     llm = LLMClient(settings=settings)

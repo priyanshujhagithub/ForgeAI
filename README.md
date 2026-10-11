@@ -101,6 +101,21 @@ wrong behaviour. That is why the last step is a human review, not a merge.
 The model is the limiting factor here, and it is swappable: any
 OpenAI-compatible endpoint can be used by changing three environment variables.
 
+### Choosing a local model
+
+The default model does not fit in 4 GB of VRAM, so most of it runs on the CPU.
+A smaller model that fits entirely on the GPU was measured on the same eight
+tasks, from the same starting commit:
+
+| Model | Runs on | Time for one 5,600-token call | Solved | Time for all 8 |
+|---|---|---|---|---|
+| `qwen3:8b` (default) | 64% CPU, 36% GPU | 212 s | 3 of 8 | 45 min |
+| `Qwen2.5-Coder-3B` | 100% GPU | 42 s | 1 of 8 | 10.5 min |
+
+Each figure is from a single sweep of eight tasks, so the difference in tasks
+solved is indicative, not precise. The smaller model is about five times
+faster and clearly weaker. `infrastructure/ollama/Modelfile.fast` sets it up.
+
 ## Design points worth a look
 
 - **Model output is never trusted.** Every reply is validated against a schema
@@ -111,8 +126,11 @@ OpenAI-compatible endpoint can be used by changing three environment variables.
   file content only; it cannot choose a path or delete a file.
 - **Diagnose, then fix.** A failed test run produces a structured root cause
   first, and only the files it names are rewritten.
-- **Generated code runs only in a sandbox**, and only changes whose tests
-  passed are proposed, as a pull request on a new branch.
+- **Generated code runs only in a sandbox.** A change is proposed, as a pull
+  request on a new branch, when its tests pass. If tests fail, nothing is
+  proposed. If the repository has no tests at all, the pull request is opened
+  with `[Untested]` in its title and a warning at the top, so a reviewer knows
+  nothing vouches for it.
 - **Runs are asynchronous and durable.** `POST /runs` returns `202`; progress is
   a database row. A partial unique index guarantees one active run per project
   even under concurrent requests.
@@ -229,6 +247,8 @@ HttpOnly cookie.
 
 - A small local model is slow and frequently wrong; the numbers above say how
   often. The system is designed so a wrong change is caught, not merged.
+- Whether a repository has tests is judged from the files that were read (up
+  to 200). In a monorepo with several packages, only the first one is tested.
 - Runs execute inside the Java process and are not resumed after a restart.
 - Generation rewrites whole files, so only files that fit the model's context
   can be changed.

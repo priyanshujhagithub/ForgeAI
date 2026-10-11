@@ -23,6 +23,10 @@ class Settings:
     # Set to an empty string for providers that reject the parameter.
     llm_reasoning_effort: str = "none"
     llm_timeout_seconds: float = 600.0
+    # Hosted providers on free tiers answer "429 too many requests" often; with
+    # retries the SDK waits as long as the provider asks and tries again. Off by
+    # default: for a local model a retry would only repeat a 10-minute timeout.
+    llm_max_retries: int = 0
     llm_max_output_tokens: int = 1500
     llm_max_repairs: int = 1
 
@@ -75,6 +79,7 @@ class Settings:
             llm_timeout_seconds=float(
                 os.getenv("LLM_TIMEOUT_SECONDS", defaults.llm_timeout_seconds)
             ),
+            llm_max_retries=int(os.getenv("LLM_MAX_RETRIES", defaults.llm_max_retries)),
             llm_max_output_tokens=int(
                 os.getenv("LLM_MAX_OUTPUT_TOKENS", defaults.llm_max_output_tokens)
             ),
