@@ -97,3 +97,33 @@ def test_connection_failure_becomes_unavailable_error():
 
     with pytest.raises(LLMUnavailableError, match="Cannot reach"):
         complete(llm)
+
+
+def test_soft_check_earns_a_repair_attempt():
+    llm, client = make_llm([{"value": 1}, {"value": 2}])
+
+    result = complete(llm, soft_check=lambda a: ["prefer an even value"] if a.value % 2 else [])
+
+    assert result.value == 2
+    assert "prefer an even value" in client.requests[1]["messages"][-1]["content"]
+
+
+def test_soft_check_that_stays_unsatisfied_returns_the_last_valid_reply():
+    llm, client = make_llm([{"value": 1}, {"value": 3}])
+
+    result = complete(llm, soft_check=lambda a: ["prefer an even value"] if a.value % 2 else [])
+
+    assert result.value == 3
+    assert len(client.requests) == 2
+
+
+def test_hard_check_still_raises_even_when_a_soft_check_is_present():
+    llm, _ = make_llm([{"value": -1}, {"value": -2}])
+
+    with pytest.raises(LLMOutputError):
+        complete(
+            llm,
+            check=lambda a: ["value must be positive"] if a.value < 0 else [],
+            soft_check=lambda a: [],
+        )
+

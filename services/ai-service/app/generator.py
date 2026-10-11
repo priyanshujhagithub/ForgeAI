@@ -5,6 +5,8 @@ Writing one file per call keeps every reply small enough for a local model and
 lets later files see the versions of earlier files that were just written.
 """
 
+import ast
+import json
 import re
 
 from .llm import LLMClient
@@ -107,6 +109,9 @@ class CodeGenerator:
             name="file_edit",
             max_tokens=self.llm.settings.generation_max_output_tokens,
             check=lambda candidate: _edit_problems(candidate, current, allow_unchanged),
+            # A syntax error needs no sandbox to find. One early retry with the
+            # exact error is far cheaper than a failed test attempt.
+            soft_check=lambda candidate: _syntax_problems(path, _normalise(candidate.content)),
         )
 
         return CodeChange(
@@ -250,6 +255,21 @@ def _edit_problems(
             "content appears to leave out existing code; reply with the complete "
             "file, not an excerpt or a placeholder comment."
         ]
+    return []
+
+
+def _syntax_problems(path: str, content: str) -> list[str]:
+    """Problems a parser can find without running anything. Empty if none or unknown type."""
+    if path.endswith(".py"):
+        try:
+            ast.parse(content)
+        except SyntaxError as error:
+            return [f"{path} is not valid Python: {error.msg} (line {error.lineno})."]
+    elif path.endswith(".json"):
+        try:
+            json.loads(content)
+        except json.JSONDecodeError as error:
+            return [f"{path} is not valid JSON: {error.msg} (line {error.lineno})."]
     return []
 
 

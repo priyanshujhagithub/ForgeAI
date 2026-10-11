@@ -165,3 +165,47 @@ def test_revising_a_file_created_by_this_task_has_no_original_to_show():
     assert change.action == "create"
     assert "===== CURRENT CONTENT =====\nbroken" in prompt
     assert "===== ORIGINAL CONTENT =====" not in prompt
+
+
+# --- syntax is checked before a sandbox attempt is spent ---------------------
+# Regression from a real run: the model wrote a test file with an unmatched
+# brace and two sandbox attempts were used up discovering and re-discovering it.
+
+BROKEN_PYTHON = {"content": "def test_app():\n    assert {'a': 1}}\n", "explanation": "x"}
+
+
+def test_python_syntax_error_is_sent_back_with_the_line_before_any_sandbox_run():
+    result, client = generate([BROKEN_PYTHON, APP_EDIT, TEST_EDIT])
+
+    assert result.changes[0].content == "print('validated')\n"
+    feedback = client.requests[1]["messages"][-1]["content"]
+    assert "app.py is not valid Python" in feedback
+    assert "line 2" in feedback
+
+
+def test_unfixable_syntax_error_is_passed_on_for_the_sandbox_to_report():
+    # The check is advisory: the run continues, and the tests will fail visibly.
+    result, client = generate([BROKEN_PYTHON, BROKEN_PYTHON, TEST_EDIT])
+
+    assert result.changes[0].content == BROKEN_PYTHON["content"]
+    assert len(client.requests) == 3
+
+
+def test_files_of_unknown_type_are_not_syntax_checked():
+    context = make_context({"README.md": "# Demo", "app.py": "print('hi')"})
+    plan = EngineeringPlan.model_validate(
+        {
+            **VALID_PLAN,
+            "filesToModify": ["README.md"],
+            "filesToCreate": [],
+            "steps": [{"order": 1, "description": "Docs.", "files": ["README.md"]}],
+        }
+    )
+
+    result, client = generate(
+        [{"content": "# Demo {{ not code }\n", "explanation": "x"}], context=context, plan=plan
+    )
+
+    assert len(client.requests) == 1
+    assert result.changes[0].path == "README.md"
+

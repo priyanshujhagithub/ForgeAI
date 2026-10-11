@@ -55,28 +55,40 @@ class LLMClient:
         name: str,
         max_tokens: int | None = None,
         check: Callable[[T], list[str]] | None = None,
+        soft_check: Callable[[T], list[str]] | None = None,
     ) -> T:
         """Return a validated `schema` instance.
 
         `check` adds rules the JSON schema cannot express (for example, that a
         path exists in the repository). It returns a list of problems; an empty
         list means the value is accepted.
+
+        `soft_check` works the same way but is advisory: its problems earn the
+        model a repair attempt, and if it still cannot satisfy them the last
+        otherwise-valid reply is returned. Use it for problems a later stage
+        would catch anyway, where a cheap early retry is worth trying.
         """
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ]
         problems: list[str] = []
+        fallback: T | None = None
 
         for _ in range(1 + self.settings.llm_max_repairs):
             content = self._request(messages, schema, name, max_tokens)
             value, problems = self._parse(content, schema, check)
             if value is not None:
-                return value
+                problems = soft_check(value) if soft_check else []
+                if not problems:
+                    return value
+                fallback = value
 
             messages.append({"role": "assistant", "content": content})
             messages.append({"role": "user", "content": _repair_prompt(problems)})
 
+        if fallback is not None:
+            return fallback
         raise LLMOutputError(
             f"Model output for '{name}' failed validation: " + "; ".join(problems)
         )
