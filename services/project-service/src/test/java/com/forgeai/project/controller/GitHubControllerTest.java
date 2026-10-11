@@ -1,6 +1,8 @@
 package com.forgeai.project.controller;
 
+import com.forgeai.project.dto.CodeChangeResponse;
 import com.forgeai.project.dto.EngineeringPlanResponse;
+import com.forgeai.project.dto.GenerationResultResponse;
 import com.forgeai.project.exception.AiServiceException;
 import com.forgeai.project.exception.ProjectNotFoundException;
 import com.forgeai.project.security.AuthenticatedUser;
@@ -23,6 +25,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -119,6 +122,59 @@ class GitHubControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail")
                         .value("Project not found with id: 5"));
+    }
+
+    @Test
+    void generateChanges_shouldReturnProposedChanges() throws Exception {
+        CodeChangeResponse change = new CodeChangeResponse();
+        change.setPath("app/models.py");
+        change.setAction("modify");
+        change.setContent("class RegisterRequest: ...\n");
+        change.setExplanation("Validate input.");
+
+        GenerationResultResponse result = new GenerationResultResponse();
+        result.setChanges(List.of(change));
+
+        when(aiTaskService.generateChanges(
+                eq(2L),
+                eq(5L),
+                eq("Add input validation"),
+                any(EngineeringPlanResponse.class)
+        )).thenReturn(result);
+
+        mockMvc.perform(
+                        post("/api/v1/github/projects/5/generate")
+                                .contentType("application/json")
+                                .content("""
+                                        {
+                                          "task": "Add input validation",
+                                          "plan": {
+                                            "taskUnderstanding": "Validate input.",
+                                            "filesToModify": ["app/models.py"],
+                                            "filesToCreate": [],
+                                            "steps": []
+                                          }
+                                        }
+                                        """)
+                )
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.changes[0].path").value("app/models.py"))
+                .andExpect(jsonPath("$.changes[0].action").value("modify"))
+                .andExpect(jsonPath("$.changes[0].explanation").value("Validate input."));
+    }
+
+    @Test
+    void generateChanges_shouldRejectRequestWithoutPlan() throws Exception {
+        mockMvc.perform(
+                        post("/api/v1/github/projects/5/generate")
+                                .contentType("application/json")
+                                .content("""
+                                        {"task": "Add input validation"}
+                                        """)
+                )
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(aiTaskService);
     }
 
     @Test

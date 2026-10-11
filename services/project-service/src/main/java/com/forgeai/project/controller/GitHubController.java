@@ -170,4 +170,26 @@ public class GitHubController {
                 );
         return ResponseEntity.ok(plan);
     }
+
+    @PostMapping("/projects/{projectId}/generate")
+    public ResponseEntity<GenerationResultResponse> generateChanges(
+            @PathVariable Long projectId,
+            @Valid @RequestBody GenerateRequest request
+    ){
+        Authentication authentication =
+                SecurityContextHolder.getContext()
+                        .getAuthentication();
+
+        AuthenticatedUser user =
+                (AuthenticatedUser) authentication.getPrincipal();
+
+        GenerationResultResponse result =
+                aiTaskService.generateChanges(
+                        user.userId(),
+                        projectId,
+                        request.getTask(),
+                        request.getPlan()
+                );
+        return ResponseEntity.ok(result);
+    }
 }

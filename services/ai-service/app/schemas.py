@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
@@ -84,3 +86,20 @@ class PlanRequest(CamelModel):
     context: RepositorySnapshotContext
     task: str = Field(min_length=1, max_length=2000)
     analysis: AnalysisResult | None = None
+
+
+class CodeChange(CamelModel):
+    path: str
+    action: Literal["modify", "create", "delete"]
+    content: str = Field(description="Complete resulting file content; empty for delete.")
+    explanation: str
+
+
+class GenerationResult(CamelModel):
+    changes: list[CodeChange]
+
+
+class GenerateRequest(CamelModel):
+    context: RepositorySnapshotContext
+    task: str = Field(min_length=1, max_length=2000)
+    plan: EngineeringPlan

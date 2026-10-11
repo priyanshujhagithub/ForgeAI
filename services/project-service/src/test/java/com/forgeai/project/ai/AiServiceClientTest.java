@@ -1,7 +1,9 @@
 package com.forgeai.project.ai;
 
+import com.forgeai.project.dto.AiGenerateRequest;
 import com.forgeai.project.dto.AiPlanRequest;
 import com.forgeai.project.dto.EngineeringPlanResponse;
+import com.forgeai.project.dto.GenerationResultResponse;
 import com.forgeai.project.dto.GitHubFileResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositoryMetadata;
@@ -177,6 +179,60 @@ class AiServiceClientTest {
         assertEquals(1, plan.getSteps().get(0).getOrder());
         assertEquals("Document the rules.", plan.getSteps().get(0).getDescription());
         assertEquals(List.of("README"), plan.getSteps().get(0).getFiles());
+
+        server.verify();
+    }
+
+    @Test
+    void shouldSendPlanAndReadGeneratedChanges() {
+        EngineeringPlanResponse plan = new EngineeringPlanResponse();
+        plan.setTaskUnderstanding("Validate registration input.");
+        plan.setFilesToModify(List.of("README"));
+        plan.setFilesToCreate(List.of());
+        plan.setSteps(List.of());
+
+        server.expect(
+                MockRestRequestMatchers.requestTo(
+                        "http://localhost:8001/api/v1/generate"
+                )
+        ).andExpect(
+                MockRestRequestMatchers.method(HttpMethod.POST)
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.task")
+                        .value("Add input validation")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.plan.filesToModify[0]")
+                        .value("README")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.context.owner")
+                        .value("octocat")
+        ).andRespond(
+                MockRestResponseCreators.withSuccess(
+                        """
+                        {
+                          "changes": [
+                            {
+                              "path": "README",
+                              "action": "modify",
+                              "content": "hello, validated\\n",
+                              "explanation": "Document the rules."
+                            }
+                          ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                )
+        );
+
+        GenerationResultResponse result = client.generateChanges(
+                new AiGenerateRequest(context(), "Add input validation", plan)
+        );
+
+        assertEquals(1, result.getChanges().size());
+        assertEquals("README", result.getChanges().get(0).getPath());
+        assertEquals("modify", result.getChanges().get(0).getAction());
+        assertEquals("hello, validated\n", result.getChanges().get(0).getContent());
+        assertEquals("Document the rules.", result.getChanges().get(0).getExplanation());
 
         server.verify();
     }

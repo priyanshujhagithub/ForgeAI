@@ -1,7 +1,9 @@
 package com.forgeai.project.ai;
 
+import com.forgeai.project.dto.AiGenerateRequest;
 import com.forgeai.project.dto.AiPlanRequest;
 import com.forgeai.project.dto.EngineeringPlanResponse;
+import com.forgeai.project.dto.GenerationResultResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositorySnapshotContext;
 import com.forgeai.project.exception.AiServiceException;
@@ -75,6 +77,16 @@ public class AiServiceClient {
                 "/api/v1/plan",
                 request,
                 EngineeringPlanResponse.class
+        );
+    }
+
+    public GenerationResultResponse generateChanges(
+            AiGenerateRequest request
+    ) {
+        return post(
+                "/api/v1/generate",
+                request,
+                GenerationResultResponse.class
         );
     }
 

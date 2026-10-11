@@ -27,6 +27,12 @@ class Settings:
     evidence_budget_chars: int = 16_000
     max_file_chars: int = 6_000
 
+    # Code generation rewrites whole files, so a file must fit both in the
+    # prompt and in the output. Larger files are refused rather than truncated.
+    generation_max_file_chars: int = 8_000
+    generation_evidence_budget_chars: int = 6_000
+    generation_max_output_tokens: int = 3_000
+
     @classmethod
     def from_env(cls) -> "Settings":
         defaults = cls()
@@ -48,4 +54,18 @@ class Settings:
                 os.getenv("EVIDENCE_BUDGET_CHARS", defaults.evidence_budget_chars)
             ),
             max_file_chars=int(os.getenv("MAX_FILE_CHARS", defaults.max_file_chars)),
+            generation_max_file_chars=int(
+                os.getenv("GENERATION_MAX_FILE_CHARS", defaults.generation_max_file_chars)
+            ),
+            generation_evidence_budget_chars=int(
+                os.getenv(
+                    "GENERATION_EVIDENCE_BUDGET_CHARS",
+                    defaults.generation_evidence_budget_chars,
+                )
+            ),
+            generation_max_output_tokens=int(
+                os.getenv(
+                    "GENERATION_MAX_OUTPUT_TOKENS", defaults.generation_max_output_tokens
+                )
+            ),
         )

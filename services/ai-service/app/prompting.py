@@ -14,12 +14,15 @@ def build_repository_evidence(
     budget_chars: int,
     max_file_chars: int,
     focus_paths: Iterable[str] = (),
+    exclude_paths: Iterable[str] = (),
 ) -> str:
     """Describe the repository within `budget_chars` of file content.
 
     The full file tree is always listed so the model knows every path that
     exists. File contents follow in the order Java prioritised them, with
     `focus_paths` moved to the front, each truncated to `max_file_chars`.
+    `exclude_paths` stay in the tree but their contents are not shown (the
+    caller presents them separately).
     """
     lines = [
         f"Repository: {context.owner}/{context.repository}",
@@ -34,7 +37,11 @@ def build_repository_evidence(
     shown: list[str] = []
     remaining = budget_chars
 
+    excluded = set(exclude_paths)
+
     for file in _ordered(context.files, focus_paths):
+        if file.path in excluded:
+            continue
         if remaining < _MIN_USEFUL_CHARS:
             break
         body = _truncate(file.content, min(max_file_chars, remaining))

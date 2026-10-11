@@ -38,7 +38,7 @@ class TaskPlanner:
             user=self._build_prompt(context, task, analysis),
             schema=EngineeringPlan,
             name="engineering_plan",
-            check=lambda candidate: _grounding_problems(candidate, known_paths),
+            check=lambda candidate: plan_grounding_problems(candidate, known_paths),
         )
 
         plan.steps.sort(key=lambda step: step.order)
@@ -77,7 +77,7 @@ class TaskPlanner:
         return "\n".join(sections)
 
 
-def _grounding_problems(plan: EngineeringPlan, known_paths: set[str]) -> list[str]:
+def plan_grounding_problems(plan: EngineeringPlan, known_paths: set[str]) -> list[str]:
     """Rules a JSON schema cannot express: the plan must fit the real repository."""
     problems = []
 

@@ -6,9 +6,17 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .analyzer import RepositoryAnalyzer
+from .generator import CodeGenerator, FileTooLargeError, InvalidPlanError
 from .llm import LLMClient, LLMOutputError, LLMUnavailableError
 from .planner import TaskPlanner
-from .schemas import AnalysisResult, EngineeringPlan, PlanRequest, RepositorySnapshotContext
+from .schemas import (
+    AnalysisResult,
+    EngineeringPlan,
+    GenerateRequest,
+    GenerationResult,
+    PlanRequest,
+    RepositorySnapshotContext,
+)
 
 app = FastAPI(title="ForgeAI AI Service")
 
@@ -26,6 +34,17 @@ def get_analyzer() -> RepositoryAnalyzer:
 @lru_cache
 def get_planner() -> TaskPlanner:
     return TaskPlanner(get_llm())
+
+
+@lru_cache
+def get_generator() -> CodeGenerator:
+    return CodeGenerator(get_llm())
+
+
+@app.exception_handler(InvalidPlanError)
+@app.exception_handler(FileTooLargeError)
+def handle_unprocessable(request: Request, exc: ValueError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": str(exc)})
 
 
 @app.exception_handler(LLMOutputError)
@@ -57,3 +76,11 @@ def plan_task(
     planner: TaskPlanner = Depends(get_planner),
 ):
     return planner.plan(request.context, request.task, request.analysis)
+
+
+@app.post("/api/v1/generate", response_model=GenerationResult)
+def generate_changes(
+    request: GenerateRequest,
+    generator: CodeGenerator = Depends(get_generator),
+):
+    return generator.generate(request.context, request.task, request.plan)
