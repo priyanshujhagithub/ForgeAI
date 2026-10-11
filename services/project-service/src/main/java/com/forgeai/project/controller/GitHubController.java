@@ -3,7 +3,9 @@ package com.forgeai.project.controller;
 import com.forgeai.project.dto.*;
 import com.forgeai.project.exception.GitHubNotConnectedException;
 import com.forgeai.project.security.AuthenticatedUser;
+import jakarta.validation.Valid;
 import com.forgeai.project.service.AiAnalysisService;
+import com.forgeai.project.service.AiTaskService;
 import com.forgeai.project.service.GitHubConnectionService;
 import com.forgeai.project.service.GitHubService;
 import org.springframework.http.ResponseEntity;
@@ -20,14 +22,17 @@ public class GitHubController {
     private final GitHubService gitHubService;
     private final GitHubConnectionService gitHubConnectionService;
     private final AiAnalysisService aiAnalysisService;
+    private final AiTaskService aiTaskService;
 
     public GitHubController(GitHubService gitHubService,
                             GitHubConnectionService gitHubConnectionService,
-                            AiAnalysisService aiAnalysisService
+                            AiAnalysisService aiAnalysisService,
+                            AiTaskService aiTaskService
     ) {
         this.gitHubService = gitHubService;
         this.gitHubConnectionService = gitHubConnectionService;
         this.aiAnalysisService = aiAnalysisService;
+        this.aiTaskService = aiTaskService;
     }
 
     @GetMapping("/repositories")
@@ -143,5 +148,26 @@ public class GitHubController {
                         projectId
                 );
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/projects/{projectId}/plan")
+    public ResponseEntity<EngineeringPlanResponse> planTask(
+            @PathVariable Long projectId,
+            @Valid @RequestBody PlanRequest request
+    ){
+        Authentication authentication =
+                SecurityContextHolder.getContext()
+                        .getAuthentication();
+
+        AuthenticatedUser user =
+                (AuthenticatedUser) authentication.getPrincipal();
+
+        EngineeringPlanResponse plan =
+                aiTaskService.createPlan(
+                        user.userId(),
+                        projectId,
+                        request.getTask()
+                );
+        return ResponseEntity.ok(plan);
     }
 }

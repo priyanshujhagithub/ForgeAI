@@ -6,15 +6,26 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .analyzer import RepositoryAnalyzer
-from .llm import LLMOutputError, LLMUnavailableError
-from .schemas import AnalysisResult, RepositorySnapshotContext
+from .llm import LLMClient, LLMOutputError, LLMUnavailableError
+from .planner import TaskPlanner
+from .schemas import AnalysisResult, EngineeringPlan, PlanRequest, RepositorySnapshotContext
 
 app = FastAPI(title="ForgeAI AI Service")
 
 
 @lru_cache
+def get_llm() -> LLMClient:
+    return LLMClient()
+
+
+@lru_cache
 def get_analyzer() -> RepositoryAnalyzer:
-    return RepositoryAnalyzer()
+    return RepositoryAnalyzer(get_llm())
+
+
+@lru_cache
+def get_planner() -> TaskPlanner:
+    return TaskPlanner(get_llm())
 
 
 @app.exception_handler(LLMOutputError)
@@ -38,3 +49,11 @@ def analyze_repository(
     analyzer: RepositoryAnalyzer = Depends(get_analyzer),
 ):
     return analyzer.analyze(context)
+
+
+@app.post("/api/v1/plan", response_model=EngineeringPlan)
+def plan_task(
+    request: PlanRequest,
+    planner: TaskPlanner = Depends(get_planner),
+):
+    return planner.plan(request.context, request.task, request.analysis)

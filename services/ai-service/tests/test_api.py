@@ -3,8 +3,9 @@ from fastapi.testclient import TestClient
 
 from app.analyzer import RepositoryAnalyzer
 from app.llm import LLMOutputError, LLMUnavailableError
-from app.main import app, get_analyzer
-from tests.fakes import VALID_ANALYSIS, make_context, make_llm
+from app.main import app, get_analyzer, get_planner
+from app.planner import TaskPlanner
+from tests.fakes import VALID_ANALYSIS, VALID_PLAN, make_context, make_llm
 
 REQUEST_BODY = make_context().model_dump()
 
@@ -66,3 +67,23 @@ def test_unreachable_provider_maps_to_503(client):
 
     assert response.status_code == 503
     assert response.json() == {"detail": "provider down"}
+
+
+def test_plan_returns_the_camel_case_contract_java_expects(client):
+    llm, fake = make_llm([VALID_PLAN])
+    app.dependency_overrides[get_planner] = lambda: TaskPlanner(llm)
+
+    response = client.post(
+        "/api/v1/plan",
+        json={"context": REQUEST_BODY, "task": "Add validation.", "analysis": VALID_ANALYSIS},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == VALID_PLAN
+    assert "Add validation." in fake.requests[0]["messages"][1]["content"]
+
+
+def test_plan_rejects_a_blank_task(client):
+    response = client.post("/api/v1/plan", json={"context": REQUEST_BODY, "task": ""})
+
+    assert response.status_code == 422

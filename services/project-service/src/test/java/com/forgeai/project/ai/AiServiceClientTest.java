@@ -1,5 +1,7 @@
 package com.forgeai.project.ai;
 
+import com.forgeai.project.dto.AiPlanRequest;
+import com.forgeai.project.dto.EngineeringPlanResponse;
 import com.forgeai.project.dto.GitHubFileResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositoryMetadata;
@@ -125,6 +127,58 @@ class AiServiceClientTest {
 
         assertTrue(exception.getMessage().contains("HTTP 502"));
         assertTrue(exception.getMessage().contains("Model output failed validation"));
+    }
+
+    @Test
+    void shouldSendTaskWithContextAndReadEngineeringPlan() {
+        server.expect(
+                MockRestRequestMatchers.requestTo(
+                        "http://localhost:8001/api/v1/plan"
+                )
+        ).andExpect(
+                MockRestRequestMatchers.method(HttpMethod.POST)
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.task")
+                        .value("Add input validation")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.context.repository")
+                        .value("Hello-World")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.context.files[0].path")
+                        .value("README")
+        ).andRespond(
+                MockRestResponseCreators.withSuccess(
+                        """
+                        {
+                          "taskUnderstanding": "Validate registration input.",
+                          "filesToModify": ["README"],
+                          "filesToCreate": ["tests/test_readme.py"],
+                          "steps": [
+                            {
+                              "order": 1,
+                              "description": "Document the rules.",
+                              "files": ["README"]
+                            }
+                          ]
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                )
+        );
+
+        EngineeringPlanResponse plan = client.createPlan(
+                new AiPlanRequest(context(), "Add input validation", null)
+        );
+
+        assertEquals("Validate registration input.", plan.getTaskUnderstanding());
+        assertEquals(List.of("README"), plan.getFilesToModify());
+        assertEquals(List.of("tests/test_readme.py"), plan.getFilesToCreate());
+        assertEquals(1, plan.getSteps().size());
+        assertEquals(1, plan.getSteps().get(0).getOrder());
+        assertEquals("Document the rules.", plan.getSteps().get(0).getDescription());
+        assertEquals(List.of("README"), plan.getSteps().get(0).getFiles());
+
+        server.verify();
     }
 
     private RepositorySnapshotContext context() {

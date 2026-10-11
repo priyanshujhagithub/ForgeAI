@@ -1,5 +1,7 @@
 package com.forgeai.project.ai;
 
+import com.forgeai.project.dto.AiPlanRequest;
+import com.forgeai.project.dto.EngineeringPlanResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositorySnapshotContext;
 import com.forgeai.project.exception.AiServiceException;
@@ -63,6 +65,16 @@ public class AiServiceClient {
                 "/api/v1/analyze",
                 context,
                 RepositoryAnalysisResponse.class
+        );
+    }
+
+    public EngineeringPlanResponse createPlan(
+            AiPlanRequest request
+    ) {
+        return post(
+                "/api/v1/plan",
+                request,
+                EngineeringPlanResponse.class
         );
     }
 

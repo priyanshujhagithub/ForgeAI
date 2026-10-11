@@ -61,3 +61,13 @@ VALID_ANALYSIS = {
     "architectureNotes": "Single module.",
     "relevantFiles": ["app.py"],
 }
+
+VALID_PLAN = {
+    "taskUnderstanding": "Validate the name before greeting.",
+    "filesToModify": ["app.py"],
+    "filesToCreate": ["tests/test_app.py"],
+    "steps": [
+        {"order": 1, "description": "Add validation to app.py.", "files": ["app.py"]},
+        {"order": 2, "description": "Cover it with a test.", "files": ["tests/test_app.py"]},
+    ],
+}
