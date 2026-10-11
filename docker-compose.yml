@@ -1,0 +1,12 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: forgeai-postgres
+    environment:
+      POSTGRES_DB: forgeai
+      POSTGRES_USER: forgeai
+      POSTGRES_PASSWORD: forgeai
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./infrastructure/postgres/init:/docker-entrypoint-initdb.d
