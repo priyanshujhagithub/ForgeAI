@@ -88,24 +88,70 @@ public class GitHubService {
         Project project = connectedProject(userId, projectId);
         GitHubConnection connection = connectionFor(userId);
 
+        return prepare(project, connection).snapshot();
+    }
+
+    // Used by agent runs: the snapshot plus the exact commit it was read at.
+    public RepositoryWorkspace prepareWorkspace(
+            Long userId,
+            Long projectId
+    ){
+        Project project = connectedProject(userId, projectId);
+        GitHubConnection connection = connectionFor(userId);
+
+        PreparedRepository prepared = prepare(project, connection);
+
+        return new RepositoryWorkspace(
+                repositorySnapshotMapper.toContext(prepared.snapshot()),
+                prepared.repository().getCloneUrl(),
+                prepared.baseBranch(),
+                prepared.baseSha(),
+                prepared.repository().isPrivateRepository()
+                        ? connection.getAccessToken()
+                        : null
+        );
+    }
+
+    private record PreparedRepository(
+            GitHubRepositoryResponse repository,
+            String baseBranch,
+            String baseSha,
+            GitHubRepositorySnapshot snapshot
+    ) {}
+
+    // Resolves the default branch to a commit, then reads every file at that commit.
+    private PreparedRepository prepare(
+            Project project,
+            GitHubConnection connection
+    ){
         String owner = project.getGithubOwner();
         String repository = project.getGithubRepoName();
+        String accessToken = connection.getAccessToken();
 
-        List<GitHubFileResponse> files=new ArrayList<>();
-        long[] totalSize ={0};
+        GitHubRepositoryResponse githubRepository =
+                gitHubClient.getRepository(owner, repository, accessToken);
 
-        collectFilesRecursively(
-                "",
+        String baseBranch = githubRepository.getDefaultBranch();
+
+        String baseSha = gitHubClient.getBranchHeadSha(
                 owner,
                 repository,
-                connection.getAccessToken(),
-                files,
-                totalSize
+                baseBranch,
+                accessToken
         );
-        return new GitHubRepositorySnapshot(
+
+        List<GitHubFileResponse> files = collectFiles(
                 owner,
                 repository,
-                files
+                baseSha,
+                accessToken
+        );
+
+        return new PreparedRepository(
+                githubRepository,
+                baseBranch,
+                baseSha,
+                new GitHubRepositorySnapshot(owner, repository, files)
         );
     }
 
@@ -121,56 +167,58 @@ public class GitHubService {
         return repositorySnapshotMapper.toContext(snapshot);
     }
 
-    private void collectFilesRecursively(
-            String path,
+    // One tree request lists every path; only files that pass the policy and
+    // fit the budget are then downloaded.
+    private List<GitHubFileResponse> collectFiles(
             String owner,
             String repository,
-            String accessToken,
-            List<GitHubFileResponse> files,
-            long[] totalSize
+            String commitSha,
+            String accessToken
     ){
-        List<GitHubContentResponse> contents =
-                gitHubClient.getRepositoryContents(
-                        owner,
-                        repository,
-                        path,
-                        accessToken
-                );
-        for(GitHubContentResponse content : contents){
-            if ("file".equals(content.getType())) {
+        GitHubTreeResponse tree = gitHubClient.getTree(
+                owner,
+                repository,
+                commitSha,
+                accessToken
+        );
 
-                if (!analysisFilePolicy.shouldInclude(content.getPath())) {
-                    continue;
-                }
+        List<GitHubFileResponse> files = new ArrayList<>();
+        long totalSize = 0;
 
-                Integer fileSize = content.getSize();
-
-                if (!repositorySnapshotBudget.canIncludeFile(
-                        files.size(),
-                        totalSize[0],
-                        fileSize
-                )) {
-                    continue;
-                }
-
-                files.add(fetchFile(
-                        owner,
-                        repository,
-                        content.getPath(),
-                        accessToken
-                ));
-                totalSize[0] += fileSize;
-            }else if("dir".equals(content.getType())){
-                collectFilesRecursively(
-                        content.getPath(),
-                        owner,
-                        repository,
-                        accessToken,
-                        files,
-                        totalSize
-                );
+        for(GitHubTreeEntry entry : tree.getTree()){
+            if (!"blob".equals(entry.getType())) {
+                continue;
             }
+
+            if (!analysisFilePolicy.shouldInclude(entry.getPath())) {
+                continue;
+            }
+
+            Integer fileSize = entry.getSize();
+
+            if (!repositorySnapshotBudget.canIncludeFile(
+                    files.size(),
+                    totalSize,
+                    fileSize
+            )) {
+                continue;
+            }
+
+            GitHubBlobResponse blob = gitHubClient.getBlob(
+                    owner,
+                    repository,
+                    entry.getSha(),
+                    accessToken
+            );
+
+            files.add(new GitHubFileResponse(
+                    entry.getPath(),
+                    decodeBase64(blob.getContent(), blob.getEncoding()),
+                    entry.getSha()
+            ));
+            totalSize += fileSize;
         }
+        return files;
     }
 
     private GitHubFileResponse fetchFile(
@@ -187,23 +235,25 @@ public class GitHubService {
                         accessToken
                 );
 
-        if(!"base64".equalsIgnoreCase(githubFile.getEncoding())){
+        return new GitHubFileResponse(
+                githubFile.getPath(),
+                decodeBase64(githubFile.getContent(), githubFile.getEncoding()),
+                githubFile.getSha()
+        );
+    }
+
+    private String decodeBase64(String content, String encoding){
+        if(!"base64".equalsIgnoreCase(encoding)){
             throw new IllegalStateException(
                     "Unsupported GitHub file encoding"
             );
         }
 
-        String content = new String(
+        return new String(
                 Base64.getDecoder().decode(
-                        githubFile.getContent().replaceAll("\\s+", "")
+                        content.replaceAll("\\s+", "")
                 ),
                 StandardCharsets.UTF_8
-        );
-
-        return new GitHubFileResponse(
-                githubFile.getPath(),
-                content,
-                githubFile.getSha()
         );
     }
 

@@ -6,6 +6,7 @@ import com.forgeai.project.entity.Project;
 import com.forgeai.project.exception.ProjectNotFoundException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.mapper.ProjectMapper;
+import com.forgeai.project.repository.GitHubConnectionRepository;
 import com.forgeai.project.repository.ProjectRepository;
 import org.springframework.stereotype.Service;
 
@@ -16,11 +17,14 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMapper projectMapper;
     private final GitHubClient gitHubClient;
+    private final GitHubConnectionRepository gitHubConnectionRepository;
 
-    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, GitHubClient gitHubClient) {
+    public ProjectService(ProjectRepository projectRepository, ProjectMapper projectMapper, GitHubClient gitHubClient,
+                          GitHubConnectionRepository gitHubConnectionRepository) {
         this.projectRepository = projectRepository;
         this.projectMapper = projectMapper;
         this.gitHubClient = gitHubClient;
+        this.gitHubConnectionRepository = gitHubConnectionRepository;
     }
 
     public Project createProject(CreateProjectRequest request,Long userId){
@@ -49,7 +53,16 @@ public class ProjectService {
     ){
         Project project=projectRepository.findByIdAndUserId(projectId,userId)
                 .orElseThrow(() -> new ProjectNotFoundException(projectId));
-        GitHubRepositoryResponse githubRepository= gitHubClient.getRepository(owner,repository);
+        // With a connected GitHub account the lookup is authenticated, so the
+        // user's private repositories can be linked too.
+        GitHubRepositoryResponse githubRepository = gitHubConnectionRepository
+                .findByUserId(userId)
+                .map(connection -> gitHubClient.getRepository(
+                        owner,
+                        repository,
+                        connection.getAccessToken()
+                ))
+                .orElseGet(() -> gitHubClient.getRepository(owner,repository));
         project.setGithubRepoUrl(githubRepository.getHtmlUrl());
         project.setGithubRepoName(githubRepository.getName());
         project.setGithubOwner(githubRepository.getOwner().getLogin());

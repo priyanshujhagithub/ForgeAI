@@ -7,7 +7,6 @@ import com.forgeai.project.entity.User;
 import com.forgeai.project.exception.EmailAlreadyExistsException;
 import com.forgeai.project.exception.InvalidCredentialsException;
 import com.forgeai.project.repository.UserRepository;
-import jdk.jshell.spi.ExecutionControl;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 

@@ -7,13 +7,14 @@ import com.forgeai.project.github.GitHubOAuthService;
 import com.forgeai.project.github.GitHubOAuthStateService;
 import com.forgeai.project.mapper.UserMapper;
 import com.forgeai.project.security.AuthenticatedUser;
+import com.forgeai.project.security.CurrentUser;
 import com.forgeai.project.service.GitHubConnectionService;
 import com.forgeai.project.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -54,14 +55,26 @@ public class AuthController {
 
     @GetMapping("/github")
     public ResponseEntity<Void> githubLogin(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user=(AuthenticatedUser)authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
         String state=gitHubOAuthStateService.createState(user.userId());
         String authorizationUrl= gitHubOAuthService.buildAuthorizationUrl(state);
         return ResponseEntity
                 .status(302)
                 .header("Location",authorizationUrl)
                 .build();
+    }
+
+    // Same as /github, but returns the URL instead of redirecting. A browser
+    // cannot attach the Authorization header to a redirect it follows itself,
+    // so a UI fetches the URL here and then opens it.
+    @GetMapping("/github/url")
+    public Map<String, String> githubAuthorizationUrl(){
+        AuthenticatedUser user = CurrentUser.get();
+        String state=gitHubOAuthStateService.createState(user.userId());
+        return Map.of(
+                "authorizationUrl",
+                gitHubOAuthService.buildAuthorizationUrl(state)
+        );
     }
 
     @GetMapping("/github/callback")

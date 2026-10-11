@@ -18,6 +18,30 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger log =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    @ExceptionHandler(AgentRunNotFoundException.class)
+    public ProblemDetail handleRunNotFound(AgentRunNotFoundException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(AgentRunAlreadyActiveException.class)
+    public ProblemDetail handleRunAlreadyActive(AgentRunAlreadyActiveException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.CONFLICT,
+                exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(AgentRunQueueFullException.class)
+    public ProblemDetail handleRunQueueFull(AgentRunQueueFullException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                exception.getMessage()
+        );
+    }
+
     @ExceptionHandler(ProjectNotFoundException.class)
     public ProblemDetail handleProjectNotFound(ProjectNotFoundException exception){
         return ProblemDetail.forStatusAndDetail(
@@ -44,7 +68,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler({
             GitHubNotConnectedException.class,
-            RepositoryNotConnectedException.class
+            RepositoryNotConnectedException.class,
+            TokenDecryptionException.class
     })
     public ProblemDetail handleNotConnected(RuntimeException exception){
         return ProblemDetail.forStatusAndDetail(

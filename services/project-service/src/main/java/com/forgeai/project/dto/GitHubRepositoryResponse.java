@@ -24,4 +24,10 @@ public class GitHubRepositoryResponse {
 
     @JsonProperty("private")
     private boolean privateRepository;
+
+    @JsonProperty("default_branch")
+    private String defaultBranch;
+
+    @JsonProperty("clone_url")
+    private String cloneUrl;
 }

@@ -2,10 +2,12 @@ package com.forgeai.project.ai;
 
 import com.forgeai.project.dto.AiGenerateRequest;
 import com.forgeai.project.dto.AiPlanRequest;
+import com.forgeai.project.dto.AiSolveRequest;
 import com.forgeai.project.dto.EngineeringPlanResponse;
 import com.forgeai.project.dto.GenerationResultResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositorySnapshotContext;
+import com.forgeai.project.dto.SolveResponse;
 import com.forgeai.project.exception.AiServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,9 @@ import java.time.Duration;
 public class AiServiceClient {
 
     private final RestClient restClient;
+    // Same service, longer read timeout: a solve call runs several model
+    // calls and sandbox attempts before it answers.
+    private final RestClient solveRestClient;
     private final ObjectMapper objectMapper;
 
     @Autowired
@@ -34,18 +39,19 @@ public class AiServiceClient {
             ObjectMapper objectMapper,
             @Value("${ai-service.base-url}") String baseUrl,
             @Value("${ai-service.connect-timeout}") Duration connectTimeout,
-            @Value("${ai-service.read-timeout}") Duration readTimeout
+            @Value("${ai-service.read-timeout}") Duration readTimeout,
+            @Value("${ai-service.solve-read-timeout}") Duration solveReadTimeout
     ) {
-        // A local model can take minutes per call, so the read timeout is long
+        // A local model can take minutes per call, so the read timeouts are long
         // and explicit rather than the JDK default of "wait forever".
-        SimpleClientHttpRequestFactory requestFactory =
-                new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(connectTimeout);
-        requestFactory.setReadTimeout(readTimeout);
-
         this.restClient = builder
                 .baseUrl(baseUrl)
-                .requestFactory(requestFactory)
+                .requestFactory(requestFactory(connectTimeout, readTimeout))
+                .build();
+
+        this.solveRestClient = builder
+                .baseUrl(baseUrl)
+                .requestFactory(requestFactory(connectTimeout, solveReadTimeout))
                 .build();
 
         this.objectMapper = objectMapper;
@@ -57,7 +63,19 @@ public class AiServiceClient {
             ObjectMapper objectMapper
     ) {
         this.restClient = restClient;
+        this.solveRestClient = restClient;
         this.objectMapper = objectMapper;
+    }
+
+    private static SimpleClientHttpRequestFactory requestFactory(
+            Duration connectTimeout,
+            Duration readTimeout
+    ) {
+        SimpleClientHttpRequestFactory requestFactory =
+                new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeout);
+        requestFactory.setReadTimeout(readTimeout);
+        return requestFactory;
     }
 
     public RepositoryAnalysisResponse analyzeRepository(
@@ -90,7 +108,28 @@ public class AiServiceClient {
         );
     }
 
+    // Generate, test in the sandbox and self-correct. Can take many minutes.
+    public SolveResponse solve(
+            AiSolveRequest request
+    ) {
+        return post(
+                solveRestClient,
+                "/api/v1/solve",
+                request,
+                SolveResponse.class
+        );
+    }
+
     private <T> T post(
+            String path,
+            Object request,
+            Class<T> responseType
+    ) {
+        return post(restClient, path, request, responseType);
+    }
+
+    private <T> T post(
+            RestClient client,
             String path,
             Object request,
             Class<T> responseType
@@ -100,7 +139,7 @@ public class AiServiceClient {
         try {
             // The explicit byte body is deliberate: it guarantees the JSON is
             // actually written to the wire (an earlier streaming body arrived empty).
-            return restClient.post()
+            return client.post()
                     .uri(path)
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)

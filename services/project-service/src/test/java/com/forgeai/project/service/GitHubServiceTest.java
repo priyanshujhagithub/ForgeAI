@@ -3,6 +3,8 @@ package com.forgeai.project.service;
 import com.forgeai.project.dto.RepositoryMetadata;
 import com.forgeai.project.mapper.RepositorySnapshotMapper;
 import com.forgeai.project.dto.GitHubContentResponse;
+import com.forgeai.project.dto.GitHubRepositoryResponse;
+import com.forgeai.project.dto.GitHubTreeResponse;
 import com.forgeai.project.dto.GitHubRepositorySnapshot;
 import com.forgeai.project.dto.GitHubRepositorySummary;
 import com.forgeai.project.dto.RepositorySnapshotContext;
@@ -378,12 +380,32 @@ class GitHubServiceTest {
         when(connectionRepository.findByUserId(2L))
                 .thenReturn(Optional.of(connection));
 
-        when(gitHubClient.getRepositoryContents(
+        GitHubRepositoryResponse githubRepository =
+                new GitHubRepositoryResponse();
+        githubRepository.setDefaultBranch("master");
+
+        GitHubTreeResponse emptyTree = new GitHubTreeResponse();
+        emptyTree.setTree(List.of());
+
+        when(gitHubClient.getRepository(
                 "octocat",
                 "Hello-World",
-                "",
                 "test-access-token"
-        )).thenReturn(List.of());
+        )).thenReturn(githubRepository);
+
+        when(gitHubClient.getBranchHeadSha(
+                "octocat",
+                "Hello-World",
+                "master",
+                "test-access-token"
+        )).thenReturn("head-sha");
+
+        when(gitHubClient.getTree(
+                "octocat",
+                "Hello-World",
+                "head-sha",
+                "test-access-token"
+        )).thenReturn(emptyTree);
 
         when(repositorySnapshotMapper.toContext(any(
                 GitHubRepositorySnapshot.class

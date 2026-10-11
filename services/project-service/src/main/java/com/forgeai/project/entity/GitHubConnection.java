@@ -6,6 +6,7 @@ package com.forgeai.project.entity;
 //
 //   A ForgeAI user's connection to a GitHub account.
 
+import com.forgeai.project.security.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,6 +32,8 @@ public class GitHubConnection {
     @Column(name = "github_username", nullable = false, length = 255)
     private String githubUsername;
 
+    // Encrypted at rest; the entity always holds the usable token.
+    @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "access_token", nullable = false, columnDefinition = "TEXT")
     private String accessToken;
 

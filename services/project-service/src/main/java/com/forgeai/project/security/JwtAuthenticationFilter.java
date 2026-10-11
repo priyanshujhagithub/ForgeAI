@@ -1,6 +1,5 @@
 package com.forgeai.project.security;
 
-import com.forgeai.project.security.AuthenticatedUser;
 import com.forgeai.project.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

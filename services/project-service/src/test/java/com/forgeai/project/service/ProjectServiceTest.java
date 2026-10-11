@@ -7,6 +7,7 @@ import com.forgeai.project.entity.Project;
 import com.forgeai.project.exception.ProjectNotFoundException;
 import com.forgeai.project.github.GitHubClient;
 import com.forgeai.project.mapper.ProjectMapper;
+import com.forgeai.project.repository.GitHubConnectionRepository;
 import com.forgeai.project.repository.ProjectRepository;
 import org.junit.jupiter.api.Test;
 
@@ -30,7 +31,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         CreateProjectRequest request = new CreateProjectRequest();
 
@@ -61,7 +67,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         Project project = new Project();
         project.setId(4L);
@@ -83,7 +94,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         Project project1 = new Project();
         project1.setId(1L);
@@ -113,7 +129,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         Project project = new Project();
         project.setId(6L);
@@ -134,7 +155,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         when(repository.findByIdAndUserId(6L, 2L))
                 .thenReturn(Optional.empty());
@@ -154,7 +180,12 @@ class ProjectServiceTest {
         GitHubClient gitHubClient = mock(GitHubClient.class);
 
         ProjectService service =
-                new ProjectService(repository, mapper, gitHubClient);
+                new ProjectService(
+                        repository,
+                        mapper,
+                        gitHubClient,
+                        mock(GitHubConnectionRepository.class)
+                );
 
         Project project = new Project();
         project.setId(5L);

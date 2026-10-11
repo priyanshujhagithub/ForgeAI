@@ -2,12 +2,16 @@ package com.forgeai.project.ai;
 
 import com.forgeai.project.dto.AiGenerateRequest;
 import com.forgeai.project.dto.AiPlanRequest;
+import com.forgeai.project.dto.AiRepositoryRef;
+import com.forgeai.project.dto.AiSolveRequest;
 import com.forgeai.project.dto.EngineeringPlanResponse;
 import com.forgeai.project.dto.GenerationResultResponse;
 import com.forgeai.project.dto.GitHubFileResponse;
+import com.forgeai.project.dto.LoopResultResponse;
 import com.forgeai.project.dto.RepositoryAnalysisResponse;
 import com.forgeai.project.dto.RepositoryMetadata;
 import com.forgeai.project.dto.RepositorySnapshotContext;
+import com.forgeai.project.dto.SolveResponse;
 import com.forgeai.project.exception.AiServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -233,6 +237,113 @@ class AiServiceClientTest {
         assertEquals("modify", result.getChanges().get(0).getAction());
         assertEquals("hello, validated\n", result.getChanges().get(0).getContent());
         assertEquals("Document the rules.", result.getChanges().get(0).getExplanation());
+
+        server.verify();
+    }
+
+    @Test
+    void shouldSendRepositoryRefAndReadTheLoopResult() {
+        server.expect(
+                MockRestRequestMatchers.requestTo(
+                        "http://localhost:8001/api/v1/solve"
+                )
+        ).andExpect(
+                MockRestRequestMatchers.method(HttpMethod.POST)
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.repository.cloneUrl")
+                        .value("https://github.com/octocat/Hello-World.git")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.repository.baseSha")
+                        .value("base-sha")
+        ).andExpect(
+                MockRestRequestMatchers.jsonPath("$.task")
+                        .value("Add input validation")
+        ).andRespond(
+                MockRestResponseCreators.withSuccess(
+                        """
+                        {
+                          "plan": {
+                            "taskUnderstanding": "Validate input.",
+                            "filesToModify": ["README"],
+                            "filesToCreate": [],
+                            "steps": []
+                          },
+                          "result": {
+                            "outcome": "passed",
+                            "finalChanges": [
+                              {"path": "README", "action": "modify",
+                               "content": "hello\\n", "explanation": "Docs."}
+                            ],
+                            "attempts": [
+                              {
+                                "number": 1,
+                                "diagnosis": null,
+                                "changes": [],
+                                "sandboxResult": {
+                                  "outcome": "tests_failed",
+                                  "command": "python -m pytest -q",
+                                  "exitCode": 1,
+                                  "stdout": "1 failed",
+                                  "stderr": "",
+                                  "durationSeconds": 1.2,
+                                  "timedOut": false,
+                                  "message": null
+                                }
+                              },
+                              {
+                                "number": 2,
+                                "diagnosis": {
+                                  "rootCause": "Wrong import.",
+                                  "fixStrategy": "Fix the import.",
+                                  "filesToChange": ["README"]
+                                },
+                                "changes": [],
+                                "sandboxResult": {
+                                  "outcome": "passed",
+                                  "command": "python -m pytest -q",
+                                  "exitCode": 0,
+                                  "stdout": "3 passed",
+                                  "stderr": "",
+                                  "durationSeconds": 1.0,
+                                  "timedOut": false,
+                                  "message": null
+                                }
+                              }
+                            ],
+                            "sandboxSeconds": 27.4,
+                            "estimatedCostUsd": 0.00082,
+                            "message": null
+                          }
+                        }
+                        """,
+                        MediaType.APPLICATION_JSON
+                )
+        );
+
+        SolveResponse response = client.solve(
+                new AiSolveRequest(
+                        context(),
+                        "Add input validation",
+                        new AiRepositoryRef(
+                                "https://github.com/octocat/Hello-World.git",
+                                "master",
+                                "base-sha",
+                                null
+                        ),
+                        null,
+                        null
+                )
+        );
+
+        LoopResultResponse result = response.getResult();
+        assertEquals("passed", result.getOutcome());
+        assertEquals("README", result.getFinalChanges().get(0).getPath());
+        assertEquals(2, result.getAttempts().size());
+        assertEquals(1, result.getAttempts().get(0).getSandboxResult().getExitCode());
+        assertEquals("Wrong import.", result.getAttempts().get(1).getDiagnosis().getRootCause());
+        assertEquals(27.4, result.getSandboxSeconds());
+        assertEquals(0.00082, result.getEstimatedCostUsd());
+        assertEquals(List.of("README"), response.getPlan().getFilesToModify());
 
         server.verify();
     }

@@ -6,11 +6,9 @@ package com.forgeai.project.github;
 
 import com.forgeai.project.dto.GitHubTokenResponse;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Service

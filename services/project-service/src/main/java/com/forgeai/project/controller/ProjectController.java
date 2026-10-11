@@ -6,12 +6,11 @@ import com.forgeai.project.dto.ProjectResponse;
 import com.forgeai.project.entity.Project;
 import com.forgeai.project.mapper.ProjectMapper;
 import com.forgeai.project.security.AuthenticatedUser;
+import com.forgeai.project.security.CurrentUser;
 import com.forgeai.project.service.ProjectService;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,24 +29,21 @@ public class ProjectController {
     public ProjectResponse createProject(
             @Valid @RequestBody CreateProjectRequest request
     ){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
         var project= projectService.createProject(request,user.userId());
         return projectMapper.toResponse(project);
     }
     @GetMapping("/{id}")
     public ProjectResponse getProject(@PathVariable Long id){
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         var project= projectService.getProject(id, user.userId());
         return projectMapper.toResponse(project);
     }
     @GetMapping
     public List<ProjectResponse> getProjects(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser)authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         return projectService.getProjectsForUser(user.userId())
                 .stream()
@@ -57,8 +53,7 @@ public class ProjectController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteProject(@PathVariable Long id){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser)authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
         projectService.deleteProject(id,user.userId());
     }
 
@@ -68,8 +63,7 @@ public class ProjectController {
             @Valid @RequestBody ConnectGitHubRepositoryRequest request
             )
     {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser)authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
         var project=projectService.connectGitHubRepository(
                 id,
                 user.userId(),

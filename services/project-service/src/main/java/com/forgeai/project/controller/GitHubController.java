@@ -3,14 +3,13 @@ package com.forgeai.project.controller;
 import com.forgeai.project.dto.*;
 import com.forgeai.project.exception.GitHubNotConnectedException;
 import com.forgeai.project.security.AuthenticatedUser;
+import com.forgeai.project.security.CurrentUser;
 import jakarta.validation.Valid;
 import com.forgeai.project.service.AiAnalysisService;
 import com.forgeai.project.service.AiTaskService;
 import com.forgeai.project.service.GitHubConnectionService;
 import com.forgeai.project.service.GitHubService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,8 +37,7 @@ public class GitHubController {
     @GetMapping("/repositories")
     public List<GitHubRepositorySummary> listRepositories() {
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         return gitHubService.listRepositories(
                 user.userId()
@@ -48,8 +46,7 @@ public class GitHubController {
 
     @GetMapping("/connection")
     public GitHubConnectionResponse getConnection(){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         try{
             var connection = gitHubConnectionService.getConnection(user.userId());
@@ -70,8 +67,7 @@ public class GitHubController {
             @PathVariable Long projectId,
             @RequestParam(defaultValue = "")String path
     ){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         return gitHubService.getProjectRepositoryContents(
                 user.userId(),
@@ -85,8 +81,7 @@ public class GitHubController {
             @PathVariable Long projectId,
             @RequestParam(defaultValue = "")String path
     ){
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         return gitHubService.getProjectFile(
                 user.userId(),
@@ -99,11 +94,7 @@ public class GitHubController {
     public ResponseEntity<GitHubRepositorySnapshot> getRepositorySnapshot(
             @PathVariable Long projectId
     ) {
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        AuthenticatedUser user =
-                (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         GitHubRepositorySnapshot snapshot =
                 gitHubService.createRepositorySnapshot(
@@ -118,10 +109,7 @@ public class GitHubController {
     public ResponseEntity<RepositorySnapshotContext> getRepositoryAnalysisContext(
             @PathVariable Long projectId
     ){
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-        AuthenticatedUser user =
-                (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         RepositorySnapshotContext context=gitHubService
                 .getRepositoryAnalysisContext(
@@ -135,12 +123,7 @@ public class GitHubController {
     public ResponseEntity<RepositoryAnalysisResponse> analyzeProject(
             @PathVariable Long projectId
     ){
-        Authentication authentication =
-                SecurityContextHolder.getContext()
-                        .getAuthentication();
-
-        AuthenticatedUser user =
-                (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         RepositoryAnalysisResponse response=
                 aiAnalysisService.analyzeProject(
@@ -155,12 +138,7 @@ public class GitHubController {
             @PathVariable Long projectId,
             @Valid @RequestBody PlanRequest request
     ){
-        Authentication authentication =
-                SecurityContextHolder.getContext()
-                        .getAuthentication();
-
-        AuthenticatedUser user =
-                (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         EngineeringPlanResponse plan =
                 aiTaskService.createPlan(
@@ -176,12 +154,7 @@ public class GitHubController {
             @PathVariable Long projectId,
             @Valid @RequestBody GenerateRequest request
     ){
-        Authentication authentication =
-                SecurityContextHolder.getContext()
-                        .getAuthentication();
-
-        AuthenticatedUser user =
-                (AuthenticatedUser) authentication.getPrincipal();
+        AuthenticatedUser user = CurrentUser.get();
 
         GenerationResultResponse result =
                 aiTaskService.generateChanges(
