@@ -1,6 +1,9 @@
 /* Phones: a vertical list. Wider screens: a horizontal rail. */
 
 .tracker {
+  --marker: 1.75rem;
+  --line: 2px;
+
   display: grid;
   gap: 0;
 }
@@ -8,44 +11,119 @@
 .step {
   position: relative;
   display: grid;
-  grid-template-columns: 1.75rem 1fr;
+  grid-template-columns: var(--marker) 1fr;
   gap: var(--space-3);
   padding-bottom: var(--space-4);
   color: var(--ink-3);
+  transition: color var(--steady) var(--ease-out);
 }
 
-/* The connecting line between one marker and the next */
-.step::before {
+/*
+ * The line from one marker to the next is two layers: a pale track, and a
+ * dark fill on top that grows along it when the step is done.
+ */
+.step::before,
+.step::after {
   content: '';
   position: absolute;
-  left: calc(0.875rem - 0.5px);
-  top: 1.75rem;
-  bottom: 0;
-  width: 1px;
-  background: var(--rule-strong);
+  left: calc((var(--marker) - var(--line)) / 2);
+  top: calc(var(--marker) + 4px);
+  bottom: 4px;
+  width: var(--line);
+  border-radius: var(--line);
+}
+
+.step::before {
+  background-color: var(--rule);
+}
+
+.step::after {
+  background: var(--ink);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform var(--slow) var(--ease-in-out);
+}
+
+.done::after {
+  transform: none;
 }
 
 .step:last-child {
   padding-bottom: 0;
 }
 
-.step:last-child::before {
+.step:last-child::before,
+.step:last-child::after {
   display: none;
 }
 
+/* ---------- the marker ---------- */
+
 .marker {
-  display: grid;
-  place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border: 1px solid var(--rule-strong);
-  border-radius: 50%;
-  background: var(--paper);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
   position: relative;
   z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--marker);
+  height: var(--marker);
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  transition:
+    background-color var(--steady) var(--ease-out),
+    border-color var(--steady) var(--ease-out),
+    color var(--steady) var(--ease-out),
+    box-shadow var(--steady) var(--ease-out);
 }
+
+/* The number and the glyph share one spot; a state shows one or the other. */
+.number,
+.glyph {
+  grid-area: 1 / 1;
+}
+
+.number {
+  transition:
+    opacity var(--quick) ease,
+    transform var(--steady) var(--ease-out);
+}
+
+.glyph {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Each path is one dash as long as itself, pushed out of sight until it is drawn. */
+.tick,
+.cross {
+  opacity: 0;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    opacity var(--instant) ease,
+    stroke-dashoffset var(--steady) var(--ease-out) 100ms;
+}
+
+.done .number,
+.stopped .number {
+  opacity: 0;
+  transform: scale(0.4);
+}
+
+.done .tick,
+.stopped .cross {
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+/* ---------- text ---------- */
 
 .text {
   display: grid;
@@ -63,6 +141,8 @@
   font-size: var(--text-xs);
 }
 
+/* ---------- states ---------- */
+
 .done {
   color: var(--ink-2);
 }
@@ -73,10 +153,6 @@
   color: var(--paper);
 }
 
-.done::before {
-  background: var(--ink);
-}
-
 .current {
   color: var(--ink);
 }
@@ -85,7 +161,24 @@
   border-color: var(--accent);
   color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
-  animation: glow 1.6s ease-in-out infinite;
+}
+
+/* A ring that keeps leaving the marker says "working" without anything spinning */
+.current .marker::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  animation: ping 1.8s var(--ease-out) infinite;
+}
+
+/* ...and a glint runs along the line towards the step that comes next */
+.current::before {
+  background-image: linear-gradient(to bottom, transparent, var(--accent), transparent);
+  background-repeat: no-repeat;
+  background-size: 100% 45%;
+  animation: flow-down 1.6s linear infinite;
 }
 
 .stopped {
@@ -98,9 +191,36 @@
   color: var(--bad);
 }
 
-@keyframes glow {
-  50% {
-    box-shadow: 0 0 0 6px transparent;
+@keyframes ping {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+/* A background positioned at -100% or 200% sits wholly outside its box. */
+@keyframes flow-down {
+  from {
+    background-position: 0 -100%;
+  }
+
+  to {
+    background-position: 0 200%;
+  }
+}
+
+@keyframes flow-right {
+  from {
+    background-position: -100% 0;
+  }
+
+  to {
+    background-position: 200% 0;
   }
 }
 
@@ -116,13 +236,29 @@
     padding: 0 var(--space-3) 0 0;
   }
 
-  .step::before {
-    left: 1.75rem;
-    right: 0;
-    top: calc(0.875rem - 0.5px);
+  .step::before,
+  .step::after {
+    left: calc(var(--marker) + 6px);
+    right: 6px;
+    top: calc((var(--marker) - var(--line)) / 2);
     bottom: auto;
     width: auto;
-    height: 1px;
+    height: var(--line);
+  }
+
+  .step::after {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+
+  .done::after {
+    transform: none;
+  }
+
+  .current::before {
+    background-image: linear-gradient(to right, transparent, var(--accent), transparent);
+    background-size: 45% 100%;
+    animation-name: flow-right;
   }
 
   .text {

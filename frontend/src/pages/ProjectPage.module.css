@@ -38,32 +38,82 @@
   font-size: var(--text-sm);
   text-align: left;
   transition:
-    border-color 120ms ease,
-    color 120ms ease;
+    background-color var(--quick) var(--ease-out),
+    border-color var(--quick) var(--ease-out),
+    color var(--quick) var(--ease-out),
+    transform var(--quick) var(--ease-out);
 }
 
 .example:hover {
+  background: var(--surface);
   border-color: var(--ink-3);
   color: var(--ink);
+}
+
+.example:active {
+  transform: scale(0.99);
+  transition-duration: 60ms;
 }
 
 .runs {
   display: grid;
 }
 
+/*
+ * A row is a little wider than the list, by its own padding, so the hover
+ * background has room around the text while the text stays on the page grid.
+ */
 .run {
+  position: relative;
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--rule);
+  margin-inline: calc(-1 * var(--space-3));
+  padding: var(--space-4) var(--space-6) var(--space-4) var(--space-3);
+  border-radius: var(--radius);
   color: inherit;
   text-decoration: none;
+  transition: background-color var(--quick) var(--ease-out);
 }
 
-.run:hover .runTask {
-  text-decoration: underline;
-  text-decoration-color: var(--rule-strong);
-  text-underline-offset: 0.2em;
+.runs li + li .run::before {
+  content: '';
+  position: absolute;
+  inset: 0 var(--space-3) auto;
+  height: 1px;
+  background: var(--rule);
+  transition: opacity var(--quick) var(--ease-out);
+}
+
+.run:hover,
+.run:focus-visible {
+  background: var(--sunken);
+}
+
+/* The dividing lines step aside for the highlighted row */
+.runs li + li .run:hover::before,
+.runs li:hover + li .run::before {
+  opacity: 0;
+}
+
+.runOpen {
+  position: absolute;
+  top: 50%;
+  right: var(--space-4);
+  margin-top: -0.5em;
+  color: var(--ink-3);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition:
+    opacity var(--quick) var(--ease-out),
+    transform var(--steady) var(--ease-out),
+    color var(--quick) var(--ease-out);
+}
+
+.run:hover .runOpen,
+.run:focus-visible .runOpen {
+  opacity: 1;
+  transform: none;
+  color: var(--accent);
 }
 
 .runTask {

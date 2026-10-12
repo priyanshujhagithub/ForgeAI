@@ -1,0 +1,42 @@
+.track {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  height: 2px;
+  pointer-events: none;
+}
+
+.bar {
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transform: scaleX(0);
+  opacity: 0;
+}
+
+/*
+ * Nobody knows how long a request will take, so the bar creeps: quickly at
+ * first, then ever more slowly, never quite arriving until the work is done.
+ */
+[data-phase='loading'] .bar {
+  opacity: 1;
+  animation: creep 14s cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+}
+
+[data-phase='done'] .bar {
+  transform: none;
+  opacity: 0;
+  transition:
+    transform var(--quick) var(--ease-out),
+    opacity var(--steady) ease var(--quick);
+}
+
+@keyframes creep {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(0.92);
+  }
+}

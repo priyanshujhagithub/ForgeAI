@@ -10,6 +10,14 @@
       content="ForgeAI turns a task into a tested pull request: it reads your repository, plans, writes the code, runs your tests in a sandbox and fixes what fails."
     />
     <title>ForgeAI</title>
+    <script>
+      // Apply a saved light or dark choice before the first paint, so a reload
+      // never flashes the other theme. See src/lib/theme.ts.
+      try {
+        var theme = localStorage.getItem('forgeai.theme')
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
+      } catch (error) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

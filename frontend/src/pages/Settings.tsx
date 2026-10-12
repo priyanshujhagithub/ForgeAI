@@ -6,7 +6,10 @@ import { ErrorNotice, Notice } from '../components/Notice'
 import { Pill } from '../components/StatusPill'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { nth } from '../lib/motion'
 import { useConnection } from '../lib/queries'
+import { setTheme, useTheme } from '../lib/theme'
+import type { ThemePreference } from '../lib/theme'
 import shared from './shared.module.css'
 import styles from './Settings.module.css'
 
@@ -20,6 +23,8 @@ export function Settings() {
       </header>
 
       <GitHubCard />
+
+      <AppearanceCard />
 
       <section className={`${shared.card} ${styles.card}`} aria-labelledby="account-heading">
         <h2 id="account-heading" className={shared.sectionTitle}>
@@ -44,6 +49,57 @@ export function Settings() {
         <Button onClick={signOut}>Sign out</Button>
       </section>
     </div>
+  )
+}
+
+const THEMES: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+]
+
+/** Three radio buttons drawn as one control, with a thumb that slides to the choice. */
+function AppearanceCard() {
+  const { preference } = useTheme()
+  const selected = THEMES.findIndex((theme) => theme.value === preference)
+
+  return (
+    <section className={`${shared.card} ${styles.card}`} aria-labelledby="appearance-heading">
+      <h2 id="appearance-heading" className={shared.sectionTitle}>
+        Appearance
+      </h2>
+      <p className="muted">
+        System follows your device, and changes with it. The choice is kept in this browser.
+      </p>
+      <div
+        role="radiogroup"
+        aria-labelledby="appearance-heading"
+        className={styles.segments}
+        style={nth(selected)}
+      >
+        <span className={styles.thumb} aria-hidden="true" />
+        {THEMES.map((theme) => (
+          <label key={theme.value} className={styles.segment}>
+            <input
+              type="radio"
+              name="theme"
+              className="visually-hidden"
+              value={theme.value}
+              checked={theme.value === preference}
+              onChange={(event) => {
+                // The new theme spreads out from the option that was chosen.
+                const box = event.currentTarget.parentElement!.getBoundingClientRect()
+                setTheme(theme.value, {
+                  x: box.left + box.width / 2,
+                  y: box.top + box.height / 2,
+                })
+              }}
+            />
+            {theme.label}
+          </label>
+        ))}
+      </div>
+    </section>
   )
 }
 

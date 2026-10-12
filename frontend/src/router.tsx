@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router'
 import type { RouteObject } from 'react-router'
 import { AppShell } from './components/AppShell'
+import { RootLayout } from './components/RootLayout'
 import { RequireAuth, RouteError } from './components/RouteGuards'
 import { AuthPage } from './pages/Auth'
 import { Landing } from './pages/Landing'
@@ -13,6 +14,7 @@ import { Settings } from './pages/Settings'
 
 export const routes: RouteObject[] = [
   {
+    element: <RootLayout />,
     errorElement: <RouteError />,
     children: [
       { path: '/', element: <Landing /> },

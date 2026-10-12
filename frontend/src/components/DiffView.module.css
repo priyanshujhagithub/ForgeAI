@@ -6,10 +6,6 @@
   overflow: hidden;
 }
 
-.file + .file {
-  margin-top: var(--space-5);
-}
-
 .header {
   display: flex;
   flex-wrap: wrap;

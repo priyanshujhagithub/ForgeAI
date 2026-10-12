@@ -234,3 +234,187 @@ test.describe('view transitions', () => {
     await expect(page.locator('h1.vt-project-title')).toHaveText('Registration service')
   })
 })
+
+test.describe('motion', () => {
+  const direction = (page: Page) => page.evaluate(() => document.documentElement.dataset.nav)
+
+  test('pages move in the direction you are going', async ({ page }) => {
+    await signIn(page)
+    await mockApi(page)
+    await page.goto('/app')
+
+    await page.getByRole('link', { name: /Registration service/ }).click()
+    await expect(page.getByRole('heading', { name: 'Registration service' })).toBeVisible()
+    expect(await direction(page)).toBe('forward')
+
+    await page.getByRole('main').getByRole('link', { name: 'Projects' }).click()
+    await expect(page.getByRole('heading', { name: 'Projects' })).toBeVisible()
+    expect(await direction(page)).toBe('back')
+
+    // Settings is beside Projects, not beneath it.
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await expect(page.getByRole('heading', { name: 'Settings', level: 1 })).toBeVisible()
+    expect(await direction(page)).toBe('level')
+  })
+
+  test('one line marks the current section and moves with it', async ({ page }) => {
+    await signIn(page)
+    await mockApi(page)
+    await page.goto('/app/projects/5')
+
+    // A project page is still inside "Projects".
+    const projects = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Projects' })
+    const settings = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Settings' })
+    await expect(projects.locator('.vt-nav-indicator')).toHaveCount(1)
+
+    await settings.click()
+    await expect(settings.locator('.vt-nav-indicator')).toHaveCount(1)
+    // Two elements sharing the name would cancel the transition.
+    await expect(page.locator('.vt-nav-indicator')).toHaveCount(1)
+  })
+
+  test('the line under the tabs follows the selected tab', async ({ page }) => {
+    await signIn(page)
+    await mockApi(page)
+    await page.goto(`/app/runs/${completedRun.id}`)
+
+    const tabs = page.getByRole('tablist')
+    const line = () =>
+      tabs.evaluate((element) => ({
+        x: element.style.getPropertyValue('--line-x'),
+        width: element.style.getPropertyValue('--line-width'),
+      }))
+
+    await expect(tabs).toHaveAttribute('data-placed', 'true')
+    const underPlan = await line()
+    expect(underPlan.x).toBe('0px')
+
+    const changes = page.getByRole('tab', { name: /Changes/ })
+    await changes.click()
+    const underChanges = await line()
+    expect(underChanges.x).toBe(`${await changes.evaluate((tab) => (tab as HTMLElement).offsetLeft)}px`)
+    expect(underChanges.x).not.toBe(underPlan.x)
+  })
+
+  test('switching tabs keeps your place on the page', async ({ page }) => {
+    await signIn(page)
+    await mockApi(page)
+    await page.goto(`/app/runs/${completedRun.id}?tab=attempts`)
+    await page.getByText('Root cause').waitFor()
+
+    const tab = page.getByRole('tab', { name: /Changes/ })
+    await tab.scrollIntoViewIfNeeded()
+    await page.evaluate(() => window.scrollBy({ top: 120, behavior: 'instant' }))
+    const before = await page.evaluate(() => window.scrollY)
+    expect(before).toBeGreaterThan(0)
+
+    await tab.click()
+    await expect(page).toHaveURL(/tab=changes/)
+    await expect(page.getByText('tests/test_normalise.py').first()).toBeVisible()
+    // Not back at the top. (It may be a little less than before: the new
+    // panel can be shorter, and a page cannot stay scrolled past its end.)
+    const after = await page.evaluate(() => window.scrollY)
+    expect(after).toBeGreaterThan(0)
+    expect(after).toBeLessThanOrEqual(before)
+  })
+
+  test('a run that finishes while you watch updates without a reload', async ({ page }) => {
+    await signIn(page)
+    await mockApi(page)
+    // In progress the first time it is asked for, finished after that.
+    let asked = 0
+    await page.route(`**/api/v1/runs/${activeRun.id}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(asked++ === 0 ? activeRun : { ...completedRun, id: activeRun.id }),
+      }),
+    )
+    await page.goto(`/app/runs/${activeRun.id}`)
+
+    const writing = page.getByRole('listitem').filter({ hasText: 'Write and test' })
+    await expect(writing).toHaveAttribute('aria-current', 'step')
+
+    await expect(page.getByRole('link', { name: /Review pull request #2/ })).toBeVisible({
+      timeout: 10_000,
+    })
+    await expect(writing).toContainText('(done)')
+    await expect(page.getByText('In progress', { exact: true })).toHaveCount(0)
+  })
+
+  test('the example on the home page plays through to a pull request', async ({ page }) => {
+    await mockApi(page)
+    await page.goto('/')
+
+    const example = page.getByRole('figure')
+    await expect(example.getByText('Running', { exact: true })).toBeVisible()
+    await expect(example.getByText('Pull request open')).toBeVisible({ timeout: 12_000 })
+    await expect(example.getByText('4 min 05 s')).toBeVisible()
+
+    await example.getByRole('button', { name: /Replay/ }).click()
+    await expect(example.getByText('Running', { exact: true })).toBeVisible()
+  })
+
+  test('sections further down the home page arrive as they are scrolled to', async ({ page }) => {
+    await mockApi(page)
+    await page.goto('/')
+
+    const results = page.locator('#results [data-reveal]').first()
+    await expect(results).toHaveAttribute('data-reveal-state', 'pending')
+    await results.scrollIntoViewIfNeeded()
+    await expect(results).toHaveAttribute('data-reveal-state', 'shown')
+  })
+
+  test('with reduced motion nothing waits to be animated in', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await mockApi(page)
+    await page.goto('/')
+
+    await expect(page.locator('[data-reveal-state]')).toHaveCount(0)
+    // The example is shown finished instead of being played.
+    await expect(page.getByRole('figure').getByText('Pull request open')).toBeVisible()
+    await expect(page.getByRole('button', { name: /Replay/ })).toHaveCount(0)
+  })
+})
+
+test.describe('theme', () => {
+  const theme = (page: Page) => page.evaluate(() => document.documentElement.dataset.theme)
+  const paper = (page: Page) =>
+    page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+
+  test('the toggle switches theme and the choice survives a reload', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' })
+    await signIn(page)
+    await mockApi(page)
+    await page.goto('/app')
+    const light = await paper(page)
+
+    await page.getByRole('button', { name: 'Switch to dark theme' }).click()
+    expect(await theme(page)).toBe('dark')
+    await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeVisible()
+    expect(await paper(page)).not.toBe(light)
+
+    await page.reload()
+    expect(await theme(page)).toBe('dark')
+    expect(await paper(page)).not.toBe(light)
+  })
+
+  test('"System" in settings hands the choice back to the device', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' })
+    await signIn(page)
+    await mockApi(page)
+    await page.goto('/app/settings')
+    const dark = await paper(page)
+
+    // The radio buttons are drawn as one control; what you press is the label.
+    const appearance = page.getByRole('radiogroup', { name: 'Appearance' })
+    await appearance.getByText('Light').click()
+    await expect(appearance.getByRole('radio', { name: 'Light' })).toBeChecked()
+    expect(await theme(page)).toBe('light')
+    expect(await paper(page)).not.toBe(dark)
+
+    await appearance.getByText('System').click()
+    await expect(appearance.getByRole('radio', { name: 'System' })).toBeChecked()
+    expect(await theme(page)).toBeUndefined()
+    expect(await paper(page)).toBe(dark)
+  })
+})

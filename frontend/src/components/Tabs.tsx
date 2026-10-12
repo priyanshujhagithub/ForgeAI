@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import type { KeyboardEvent, ReactNode } from 'react'
 import styles from './Tabs.module.css'
 
@@ -20,9 +20,44 @@ interface TabsProps {
 /**
  * Tabs that follow the WAI-ARIA pattern: one tab stop for the whole list,
  * arrow keys to move between tabs, Home and End to jump to the ends.
+ *
+ * One line marks the selected tab and slides to the next one you pick.
  */
 export function Tabs({ tabs, selected, onSelect, label, children }: TabsProps) {
   const list = useRef<HTMLDivElement>(null)
+
+  // Labels and counts change a tab's width, so the line is measured again
+  // whenever any of them does.
+  const shape = tabs.map((tab) => `${tab.id}:${tab.label}:${tab.count ?? ''}`).join('|')
+
+  useLayoutEffect(() => {
+    const element = list.current
+    const tab = element?.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (!element || !tab) return
+
+    // Written straight to the element: measuring must not cause a re-render.
+    const place = () => {
+      element.style.setProperty('--line-x', `${tab.offsetLeft}px`)
+      element.style.setProperty('--line-width', String(tab.offsetWidth))
+    }
+    place()
+
+    // On a narrow screen the list scrolls sideways; keep the selection in view.
+    if (element.dataset.placed) tab.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+    // The line appears in place the first time, and only slides after that.
+    const frame = requestAnimationFrame(() => {
+      element.dataset.placed = 'true'
+    })
+
+    if (typeof ResizeObserver === 'undefined') return () => cancelAnimationFrame(frame)
+    const observer = new ResizeObserver(place)
+    observer.observe(element)
+    observer.observe(tab)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }, [selected, shape])
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     const current = tabs.findIndex((tab) => tab.id === selected)
@@ -64,10 +99,16 @@ export function Tabs({ tabs, selected, onSelect, label, children }: TabsProps) {
               onClick={() => onSelect(tab.id)}
             >
               {tab.label}
-              {tab.count !== undefined && <span className={styles.count}>{tab.count}</span>}
+              {tab.count !== undefined && (
+                // Keyed by its value, so the badge pops when the number changes.
+                <span key={tab.count} className={styles.count}>
+                  {tab.count}
+                </span>
+              )}
             </button>
           )
         })}
+        <span className={styles.line} aria-hidden="true" />
       </div>
       <div
         role="tabpanel"
@@ -76,7 +117,10 @@ export function Tabs({ tabs, selected, onSelect, label, children }: TabsProps) {
         tabIndex={0}
         className={styles.panel}
       >
-        {children}
+        {/* Keyed by tab, so each panel arrives instead of swapping in place. */}
+        <div key={selected} className="enter">
+          {children}
+        </div>
       </div>
     </div>
   )

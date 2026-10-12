@@ -2,11 +2,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, NavLink, useNavigate, useParams } from 'react-router'
 import { Button } from '../components/Button'
-import { EmptyState, Skeleton } from '../components/Feedback'
+import { EmptyState, RowSkeleton, Skeleton } from '../components/Feedback'
+import { Icon } from '../components/Icon'
 import { TextArea } from '../components/Field'
 import { ErrorNotice, Notice } from '../components/Notice'
 import { StatusPill } from '../components/StatusPill'
 import { timeAgo } from '../lib/format'
+import { nth } from '../lib/motion'
 import { useDeleteProject, useProject, useRuns, useStartRun } from '../lib/queries'
 import type { Run } from '../lib/types'
 import { NotFound } from './NotFound'
@@ -36,7 +38,7 @@ export function ProjectPage() {
   return (
     <div className={shared.stack}>
       <Link to="/app" viewTransition className={shared.back}>
-        <span aria-hidden="true">←</span> Projects
+        <Icon name="arrowLeft" /> Projects
       </Link>
 
       <header>
@@ -79,7 +81,7 @@ export function ProjectPage() {
             )}
           </div>
 
-          {runs.isLoading && <Skeleton lines={3} />}
+          {runs.isLoading && <RowSkeleton rows={3} />}
           {runs.isError && <ErrorNotice error={runs.error} title="Could not load runs" />}
           {runs.data?.length === 0 && (
             <EmptyState title="No runs yet">
@@ -89,8 +91,9 @@ export function ProjectPage() {
           )}
           {runs.data && runs.data.length > 0 && (
             <ul className={styles.runs}>
-              {runs.data.map((run) => (
-                <li key={run.id}>
+              {runs.data.map((run, index) => (
+                // Fades without moving: the row holds a title shared with the run page.
+                <li key={run.id} className="enter-fade" style={nth(index)}>
                   <RunRow run={run} />
                 </li>
               ))}
@@ -174,6 +177,7 @@ function RunRow({ run }: { run: Run }) {
             )}
             {run.pullRequestNumber && <span>Pull request #{run.pullRequestNumber}</span>}
           </span>
+          <Icon name="arrowRight" className={styles.runOpen} />
         </>
       )}
     </NavLink>
@@ -199,7 +203,7 @@ function DeleteProject({ projectId, disabled }: { projectId: number; disabled: b
         {remove.isError && <ErrorNotice error={remove.error} title="Could not delete" />}
       </div>
       {confirming ? (
-        <div className={shared.formActions}>
+        <div className={`${shared.formActions} enter-fade`}>
           <Button
             variant="danger"
             busy={remove.isPending}

@@ -30,12 +30,50 @@
   width: 100%;
 }
 
+/*
+ * A run that finishes while you are watching it is marked once: a band of
+ * light crosses the message. A run you open later, already finished, is not.
+ */
+.celebrate > :first-child {
+  position: relative;
+  overflow: hidden;
+}
+
+.celebrate > :first-child::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in srgb, var(--surface) 75%, transparent) 50%,
+    transparent 65%
+  );
+  transform: translateX(-100%);
+  animation: sheen 1100ms var(--ease-in-out) 250ms;
+  pointer-events: none;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+
 .understanding {
   font-size: var(--text-md);
 }
 
-.caution {
-  margin-bottom: var(--space-5);
+/* ---------- changes ---------- */
+
+.changes {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* Free to shrink, so a long line of code scrolls inside its own file */
+.changes > * {
+  min-width: 0;
 }
 
 /* ---------- plan ---------- */
@@ -142,14 +180,56 @@
 }
 
 .output summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-sm);
   color: var(--ink-2);
   cursor: pointer;
+  /* Replaces the browser's own triangle with the chevron below */
+  list-style: none;
+  transition: color var(--quick) var(--ease-out);
+}
+
+.output summary::-webkit-details-marker {
+  display: none;
 }
 
 .output summary:hover {
   color: var(--ink);
+}
+
+.output summary svg {
+  flex: none;
+  transform: rotate(-90deg);
+  transition: transform var(--steady) var(--ease-out);
+}
+
+.output[open] summary svg {
+  transform: none;
+}
+
+/*
+ * Opening and closing slides instead of jumping, where the browser can
+ * animate to and from a height of `auto`. Elsewhere it opens at once.
+ */
+@supports (interpolate-size: allow-keywords) {
+  .output {
+    interpolate-size: allow-keywords;
+  }
+
+  .output::details-content {
+    block-size: 0;
+    overflow: clip;
+    transition:
+      block-size var(--steady) var(--ease-in-out),
+      content-visibility var(--steady) allow-discrete;
+  }
+
+  .output[open]::details-content {
+    block-size: auto;
+  }
 }
 
 .output pre {

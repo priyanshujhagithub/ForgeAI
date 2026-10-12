@@ -21,6 +21,15 @@
 
 .spark {
   fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--steady) var(--spring);
+}
+
+/* The spark catches when the brand link is hovered or focused */
+a:hover .spark,
+a:focus-visible .spark {
+  transform: scale(1.5) rotate(45deg);
 }
 
 .word {

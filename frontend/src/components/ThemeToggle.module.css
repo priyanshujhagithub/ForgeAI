@@ -1,0 +1,45 @@
+.toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font-size: 1rem;
+  transition:
+    background-color var(--quick) var(--ease-out),
+    color var(--quick) var(--ease-out),
+    transform var(--quick) var(--ease-out);
+}
+
+.toggle:hover {
+  background: var(--sunken);
+  color: var(--ink);
+}
+
+.toggle:active {
+  transform: scale(0.92);
+  transition-duration: 60ms;
+}
+
+/* Both icons sit in the same spot; the one for the other theme is turned away. */
+.icon {
+  grid-area: 1 / 1;
+  transition:
+    opacity var(--quick) ease,
+    transform var(--steady) var(--spring);
+}
+
+.toggle[data-showing='light'] .moon {
+  opacity: 0;
+  transform: rotate(-90deg) scale(0.4);
+}
+
+.toggle[data-showing='dark'] .sun {
+  opacity: 0;
+  transform: rotate(90deg) scale(0.4);
+}

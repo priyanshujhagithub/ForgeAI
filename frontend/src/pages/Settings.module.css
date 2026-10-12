@@ -20,3 +20,52 @@
 .accountMeta {
   width: 100%;
 }
+
+/* ---------- a choice of three, drawn as one control ---------- */
+
+.segments {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 20rem);
+  padding: 3px;
+  background: var(--sunken);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+/* One third of the control, moved along by the position of the selected option */
+.thumb {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / 3);
+  background: var(--surface);
+  border-radius: calc(var(--radius) - 3px);
+  box-shadow: var(--shadow-1);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform var(--steady) var(--spring);
+}
+
+.segment {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 2rem;
+  border-radius: calc(var(--radius) - 3px);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--quick) var(--ease-out);
+}
+
+.segment:hover,
+.segment:has(:checked) {
+  color: var(--ink);
+}
+
+/* The radio itself is hidden, so its focus ring is drawn on the label */
+.segment:has(:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

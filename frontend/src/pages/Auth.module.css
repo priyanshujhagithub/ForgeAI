@@ -1,11 +1,20 @@
+/* Phones: the form alone. Wide screens: the form beside a panel showing a run. */
 .page {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   min-height: 100dvh;
 }
 
+.side {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .header {
-  padding: var(--space-4) var(--gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--gutter);
 }
 
 .brand {
@@ -58,9 +67,39 @@
   font-weight: 500;
 }
 
+.aside {
+  display: none;
+}
+
 @media (min-width: 40rem) {
   .main {
     place-items: center;
     padding-bottom: var(--space-9);
+  }
+}
+
+@media (min-width: 60rem) {
+  .page {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .aside {
+    display: grid;
+    place-items: center;
+    padding: var(--space-7) var(--gutter);
+    background: var(--sunken);
+    border-left: 1px solid var(--rule);
+  }
+
+  .asideInner {
+    display: grid;
+    gap: var(--space-4);
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .asideNote {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
   }
 }

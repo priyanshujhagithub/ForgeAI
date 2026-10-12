@@ -4,6 +4,14 @@
   border-radius: var(--radius-sm);
   background: var(--sunken);
   font-size: var(--text-sm);
+  animation: arrive var(--steady) var(--ease-out) backwards;
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 .title {

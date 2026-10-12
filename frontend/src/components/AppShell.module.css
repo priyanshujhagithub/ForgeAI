@@ -7,6 +7,7 @@
   background: var(--ink);
   color: var(--paper);
   border-radius: var(--radius-sm);
+  transition: top var(--quick) var(--ease-out);
 }
 
 .skip:focus {
@@ -17,9 +18,28 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
   border-bottom: 1px solid var(--rule);
+}
+
+/*
+ * The bar lifts off the page once there is something scrolled beneath it.
+ * The shadow is tied to the scroll position itself, not to time, so it
+ * tracks the first few pixels of scrolling exactly.
+ */
+@supports (animation-timeline: scroll()) {
+  .header {
+    animation: lift linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 3rem;
+  }
+
+  @keyframes lift {
+    to {
+      box-shadow: var(--shadow-2);
+    }
+  }
 }
 
 /*
@@ -51,13 +71,13 @@
 }
 
 .link {
+  position: relative;
   padding: var(--space-2) 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
   color: var(--ink-2);
   font-size: var(--text-sm);
   font-weight: 500;
   text-decoration: none;
+  transition: color var(--quick) var(--ease-out);
 }
 
 .link:hover {
@@ -65,8 +85,15 @@
 }
 
 .current {
-  border-bottom-color: var(--accent);
   color: var(--ink);
+}
+
+/* Sits on top of the header's bottom border */
+.indicator {
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 2px;
+  background: var(--accent);
 }
 
 .account {

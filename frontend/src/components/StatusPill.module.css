@@ -8,9 +8,14 @@
   font-weight: 500;
   line-height: 1.5;
   white-space: nowrap;
+  /* A live run changes tone in place, so the colours cross-fade */
+  transition:
+    background-color var(--steady) var(--ease-out),
+    color var(--steady) var(--ease-out);
 }
 
 .dot {
+  position: relative;
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
@@ -27,9 +32,14 @@
   color: var(--busy);
 }
 
-/* A run in progress breathes, so a glance tells you it is alive */
-.busy .dot {
-  animation: pulse 1.4s ease-in-out infinite;
+/* A run in progress radiates, so a glance tells you it is alive */
+.busy .dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: radiate 1.8s var(--ease-out) infinite;
 }
 
 .ok {
@@ -47,8 +57,14 @@
   color: var(--bad);
 }
 
-@keyframes pulse {
-  50% {
-    opacity: 0.25;
+@keyframes radiate {
+  from {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(3.2);
   }
 }

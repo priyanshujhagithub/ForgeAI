@@ -199,10 +199,10 @@ All endpoints except register, login and the OAuth callback need
 
 | Suite | Tests | What it needs |
 |---|---|---|
-| `services/project-service` (`./mvnw verify`) | 110 | Docker, for a throwaway PostgreSQL |
-| `services/ai-service` (`pytest`) | 138 | Nothing: the model, E2B and Langfuse are faked |
-| `frontend` (`npm test`) | 30 | Nothing: logic and components in jsdom |
-| `frontend` (`npm run test:e2e`) | 25, each at desktop and phone size | Chromium; the API is mocked |
+| `services/project-service` (`./mvnw verify`) | 114 | Docker, for a throwaway PostgreSQL |
+| `services/ai-service` (`pytest`) | 158 | Nothing: the model, E2B and Langfuse are faked |
+| `frontend` (`npm test`) | 36 | Nothing: logic and components in jsdom |
+| `frontend` (`npm run test:e2e`) | 37, each at desktop and phone size | Chromium; the API is mocked |
 
 CI runs all three on every push without any secrets.
 
@@ -219,20 +219,40 @@ python -m evals.run --repo <owner>/<name> --max-tasks 2
 
 The web app in [frontend/](frontend/) is React and TypeScript on Vite, with React
 Router and TanStack Query. It has no UI kit and no CSS framework: the look is a
-small set of design tokens and CSS Modules, with light and dark themes.
+small set of design tokens and CSS Modules. It has no animation library either:
+all motion is CSS and the View Transitions API, plus about a hundred lines of
+hooks in [frontend/src/lib/motion.ts](frontend/src/lib/motion.ts).
 
 - **Pages:** landing, sign in, create account, projects, new project, project
   (start a run, history), run (progress, plan, diff, test attempts, analysis),
   settings, and a not-found page.
-- **View Transitions API:** navigation cross-fades, the header stays in place,
-  and the title of the project or run you open travels from the list into the
-  page heading. Browsers without the API just navigate.
+- **View Transitions API:** pages move in the direction you are going (deeper
+  slides in from the right, back from the left, sideways cross-fades). The
+  header stays in place, the line under the current section slides to the one
+  you pick, and the title of the project or run you open travels from the list
+  into the page heading. Browsers without the API just navigate.
+- **One motion system:** four durations and four easing curves, defined once as
+  tokens in [tokens.css](frontend/src/styles/tokens.css), are the only timings
+  in the app. The spring curve is sampled from a damped spring, not drawn by eye.
+- **A run you can watch:** while a run is in progress the step tracker draws
+  each tick, fills the line to the next step and shows which step is working.
+  The home page replays a real run the same way.
+- **Scroll:** sections arrive as they are scrolled to, and two effects are tied
+  to the scroll position itself with CSS scroll-driven animations (the header
+  lifting off the page, and a line that fills beside "How it works"). Where
+  those are not supported, the page is simply still.
+- **Light and dark:** every colour is declared once with `light-dark()`. The
+  theme follows the device until you choose one; the choice is applied before
+  the first paint, and the new theme spreads out from the button you pressed.
+- **Loading:** placeholders are shaped like the content they stand in for and
+  wait a moment before showing, so a fast response never flashes one.
 - **Responsive:** written phone-first. A browser test loads every page at
   390 px and fails if any of them scrolls sideways; wide content such as diffs
   and test output scrolls inside its own box.
 - **Accessible:** real labels and error messages on form fields, keyboard
-  navigation for tabs, a skip link, status never shown by colour alone, and
-  reduced-motion respected.
+  navigation for tabs, a skip link, and status never shown by colour alone.
+  With "reduce motion" switched on in the operating system nothing animates and
+  nothing waits to be revealed; a browser test checks this.
 - **Live without a refresh:** a run page polls only while the run is active and
   stops when it finishes.
 - **A correct diff after merge:** changes are compared with the file at the

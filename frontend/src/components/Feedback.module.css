@@ -2,20 +2,64 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-2) 0;
+  /* Invisible for the first moment: a fast response never shows a skeleton */
+  animation: late var(--steady) ease 180ms backwards;
+}
+
+@keyframes late {
+  from {
+    opacity: 0;
+  }
 }
 
 .bar {
+  display: block;
   height: 0.85rem;
   border-radius: var(--radius-sm);
-  background: linear-gradient(90deg, var(--sunken) 25%, var(--rule) 50%, var(--sunken) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
+  background: linear-gradient(
+    100deg,
+    var(--sunken) 40%,
+    color-mix(in srgb, var(--sunken) 50%, var(--surface)) 50%,
+    var(--sunken) 60%
+  );
+  /*
+   * The bar shows two fifths of the gradient at a time. At either end of the
+   * animation that window holds only the plain colour, so the loop has no seam.
+   */
+  background-size: 250% 100%;
+  animation: shimmer 1.5s linear infinite;
 }
 
 @keyframes shimmer {
-  to {
-    background-position: -200% 0;
+  from {
+    background-position: 100% 0;
   }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* The same box as a project card (see Projects.module.css) */
+.card {
+  height: 100%;
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.divider {
+  height: 1px;
+  margin-top: var(--space-3);
+  background: var(--rule);
+}
+
+.row {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
 }
 
 .empty {

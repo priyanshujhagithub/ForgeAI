@@ -7,6 +7,12 @@ import { activeRun, completedRun, failedRun, mockApi, signIn, untestedRun } from
 
 const shot = (name: string) => `e2e/screenshots/${name}`
 
+// Pictures are of each page at rest. Without this, a full-page capture would
+// show sections that have not been scrolled to as still waiting to appear.
+test.beforeEach(async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+})
+
 for (const scheme of ['light', 'dark'] as const) {
   test.describe(`${scheme} theme`, () => {
     test.use({ colorScheme: scheme })

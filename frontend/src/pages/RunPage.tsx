@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router'
 import { ButtonAnchor } from '../components/Button'
 import { DiffView } from '../components/DiffView'
 import { Skeleton } from '../components/Feedback'
+import { Icon } from '../components/Icon'
 import { ErrorNotice, Notice } from '../components/Notice'
 import { Pill, StatusPill } from '../components/StatusPill'
 import { StepTracker } from '../components/StepTracker'
@@ -15,6 +16,7 @@ import {
   secondsBetween,
   shortSha,
 } from '../lib/format'
+import { nth } from '../lib/motion'
 import { useProject, useRun } from '../lib/queries'
 import { proposed, STATUS } from '../lib/runStatus'
 import type { Analysis, Attempt, Plan, Run } from '../lib/types'
@@ -29,6 +31,7 @@ export function RunPage() {
   const run = useRun(runId)
   const project = useProject(run.data?.projectId ?? -1)
   const [params, setParams] = useSearchParams()
+  const finishedWhileWatching = useFinishedWhileWatching(runId, run.data?.active ?? false)
 
   if (run.isLoading) return <Skeleton lines={6} />
   if (run.error instanceof ApiError && run.error.status === 404) return <NotFound what="run" />
@@ -51,7 +54,7 @@ export function RunPage() {
   return (
     <div className={shared.stack}>
       <Link to={`/app/projects/${data.projectId}`} viewTransition className={shared.back}>
-        <span aria-hidden="true">←</span> {project.data?.name ?? 'Project'}
+        <Icon name="arrowLeft" /> {project.data?.name ?? 'Project'}
       </Link>
 
       <header className={styles.head}>
@@ -62,7 +65,7 @@ export function RunPage() {
         <h1 className={`${styles.task} vt-run-title`}>{data.task}</h1>
       </header>
 
-      <Outcome run={data} />
+      <Outcome run={data} celebrate={finishedWhileWatching && proposed(data.status)} />
 
       <section aria-label="Progress" className={shared.card}>
         <StepTracker run={data} />
@@ -74,8 +77,9 @@ export function RunPage() {
         label="Run details"
         tabs={tabs}
         selected={selected}
-        // replace: switching tabs should not pile up entries in the back button
-        onSelect={(id) => setParams({ tab: id }, { replace: true })}
+        // replace: switching tabs should not pile up entries in the back button.
+        // preventScrollReset: nor should it throw you back to the top of the page.
+        onSelect={(id) => setParams({ tab: id }, { replace: true, preventScrollReset: true })}
       >
         {selected === 'plan' && <PlanPanel plan={data.plan} active={data.active} />}
         {selected === 'changes' && <ChangesPanel run={data} />}
@@ -96,8 +100,18 @@ function repositoryName(project: { githubOwner: string | null; githubRepoName: s
   return project?.githubOwner ? `${project.githubOwner}/${project.githubRepoName}` : null
 }
 
+/**
+ * True once a run that was seen in progress on this page has finished: the
+ * moment worth marking. Opening a run that had already finished is not one.
+ */
+function useFinishedWhileWatching(runId: string, active: boolean): boolean {
+  const [watched, setWatched] = useState<string | null>(null)
+  if (active && watched !== runId) setWatched(runId)
+  return watched === runId && !active
+}
+
 /** The headline result of a finished run, and the way out to the pull request. */
-function Outcome({ run }: { run: Run }) {
+function Outcome({ run, celebrate }: { run: Run; celebrate: boolean }) {
   if (run.active) {
     return (
       <Notice tone="busy" title="In progress" role="status">
@@ -109,13 +123,18 @@ function Outcome({ run }: { run: Run }) {
 
   const { tone, summary } = STATUS[run.status]
   return (
-    <div className={styles.outcome}>
+    <div className={`${styles.outcome} ${celebrate ? styles.celebrate : ''}`}>
       <Notice tone={tone} title={summary} role="status">
         {/* For an untested run the summary already says why; do not repeat it. */}
         {run.status === 'COMPLETED_UNTESTED' ? null : run.errorMessage}
       </Notice>
       {run.pullRequestUrl && (
-        <ButtonAnchor href={run.pullRequestUrl} variant="primary" size="lg">
+        <ButtonAnchor
+          href={run.pullRequestUrl}
+          variant="primary"
+          size="lg"
+          className={celebrate ? 'enter' : undefined}
+        >
           {run.status === 'COMPLETED_UNTESTED' ? 'Check' : 'Review'} pull request #
           {run.pullRequestNumber}
         </ButtonAnchor>
@@ -158,7 +177,8 @@ function RunFacts({
       </div>
       <div>
         <dt>{run.active ? 'Elapsed' : 'Took'}</dt>
-        <dd className="mono">{formatDuration(elapsed)}</dd>
+        {/* Digits of equal width, so the running clock does not jitter */}
+        <dd className="mono tabular">{formatDuration(elapsed)}</dd>
       </div>
       {attempts > 0 && (
         <div>
@@ -208,8 +228,8 @@ function PlanPanel({ plan, active }: { plan: Plan | null; active: boolean }) {
     <div className={shared.prose}>
       <p className={styles.understanding}>{plan.taskUnderstanding}</p>
       <ol className={styles.planSteps}>
-        {plan.steps.map((step) => (
-          <li key={step.order} className={styles.planStep}>
+        {plan.steps.map((step, index) => (
+          <li key={step.order} className={`${styles.planStep} enter`} style={nth(index)}>
             <span className={styles.planNumber} aria-hidden="true">
               {String(step.order).padStart(2, '0')}
             </span>
@@ -235,22 +255,17 @@ function ChangesPanel({ run }: { run: Run }) {
   if (changes.length === 0) return <Pending active={run.active} what="any changes" />
 
   return (
-    <div>
+    <div className={styles.changes}>
       {!proposed(run.status) && !run.active && (
-        <div className={styles.caution}>
-          <Notice tone="warn" title="These changes were not proposed">
-            They are the last version the agent produced. They did not pass the tests, so no
-            pull request was opened.
-          </Notice>
-        </div>
+        <Notice tone="warn" title="These changes were not proposed">
+          They are the last version the agent produced. They did not pass the tests, so no pull
+          request was opened.
+        </Notice>
       )}
-      {changes.map((change) => (
-        <DiffView
-          key={change.path}
-          projectId={run.projectId}
-          change={change}
-          baseSha={run.baseSha}
-        />
+      {changes.map((change, index) => (
+        <div key={change.path} className="enter" style={nth(index)}>
+          <DiffView projectId={run.projectId} change={change} baseSha={run.baseSha} />
+        </div>
       ))}
     </div>
   )
@@ -277,8 +292,8 @@ function AttemptsPanel({
 
   return (
     <ol className={styles.attempts}>
-      {attempts.map((attempt) => (
-        <li key={attempt.number}>
+      {attempts.map((attempt, index) => (
+        <li key={attempt.number} className="enter" style={nth(index)}>
           <AttemptCard attempt={attempt} />
         </li>
       ))}
@@ -337,7 +352,10 @@ function AttemptCard({ attempt }: { attempt: Attempt }) {
       {/* Failed output is what you came for; passing output can stay folded. */}
       <details className={styles.output} open={sandbox.outcome !== 'passed'}>
         <summary>
-          Output of <code>{sandbox.command}</code>
+          <Icon name="chevronDown" />
+          <span>
+            Output of <code>{sandbox.command}</code>
+          </span>
         </summary>
         <pre tabIndex={0}>{output || 'No output.'}</pre>
       </details>

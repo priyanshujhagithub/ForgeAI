@@ -7,6 +7,9 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
+  /* A link to a section lands below the sticky header, not underneath it */
+  scroll-padding-top: 5rem;
+  scrollbar-color: var(--rule-strong) transparent;
 }
 
 body {
@@ -64,6 +67,12 @@ a {
   color: inherit;
   text-decoration-color: var(--rule-strong);
   text-underline-offset: 0.2em;
+}
+
+a {
+  transition:
+    color var(--instant) ease,
+    text-decoration-color var(--instant) ease;
 }
 
 a:hover {
@@ -127,6 +136,10 @@ kbd {
   color: var(--ink-3);
 }
 
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -134,6 +147,67 @@ kbd {
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
+}
+
+/*
+ * Arriving.
+ *
+ * `enter` is for content that appears after the page does: a list that has
+ * just loaded, a panel behind a tab, a message. Items in a list set --i to
+ * their position and arrive one after another; the delay stops growing after
+ * the eighth, so a long list does not keep you waiting.
+ *
+ * `enter-fade` does the same without moving. Use it for anything that holds a
+ * title shared with another page: a view transition measures where that title
+ * is, and it must not be measured part-way through a slide.
+ *
+ * The fill mode is `backwards`, not `both`: once finished the animation lets
+ * go of the element completely, so it leaves no stacking context behind.
+ */
+
+.enter,
+.enter-fade {
+  animation: var(--steady) var(--ease-out) backwards;
+  animation-delay: calc(min(var(--i, 0), 8) * var(--stagger));
+}
+
+.enter {
+  animation-name: enter;
+}
+
+.enter-fade {
+  animation-name: enter-fade;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes enter-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * Scrolling into view (see useRevealOnScroll). The hidden state exists only
+ * once the script has marked an element as pending, so if the script never
+ * runs, nothing stays invisible.
+ */
+
+[data-reveal-state='pending'] {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+[data-reveal-state='shown'] {
+  transition:
+    opacity var(--slow) var(--ease-out),
+    transform var(--slow) var(--ease-out);
+  transition-delay: calc(var(--i, 0) * var(--stagger));
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,49 +1,60 @@
 /*
  * Design tokens. Components use these names only, never raw values, so the
  * light and dark themes and any later restyling happen in this one file.
+ *
+ * Every colour is written once as light-dark(light, dark). Which of the two
+ * applies follows `color-scheme`: the operating system's setting by default,
+ * or the user's own choice once they pick one (see lib/theme.ts).
  */
 
 :root {
   color-scheme: light dark;
 
   /* Surfaces: warm paper, not pure white */
-  --paper: #f7f5f0;
-  --surface: #ffffff;
-  --sunken: #efece5;
+  --paper: light-dark(#f7f5f0, #141311);
+  --surface: light-dark(#ffffff, #1c1b18);
+  --sunken: light-dark(#efece5, #0e0d0c);
 
   /* Ink */
-  --ink: #1b1a17;
-  --ink-2: #55524a;
-  --ink-3: #807c71;
+  --ink: light-dark(#1b1a17, #ece9e1);
+  --ink-2: light-dark(#55524a, #b5b1a6);
+  --ink-3: light-dark(#807c71, #858176);
 
   /* Lines */
-  --rule: #dedad0;
-  --rule-strong: #c4bfb1;
+  --rule: light-dark(#dedad0, #2e2c27);
+  --rule-strong: light-dark(#c4bfb1, #45423a);
 
   /* One accent, used sparingly: the ember */
-  --accent: #c2410c;
-  --accent-hover: #a3360a;
-  --accent-ink: #ffffff;
-  --accent-soft: #fbe9df;
+  --accent: light-dark(#c2410c, #f08a4b);
+  --accent-hover: light-dark(#a3360a, #f5a06b);
+  --accent-ink: light-dark(#ffffff, #1b1a17);
+  --accent-soft: light-dark(#fbe9df, #38230f);
 
   /* Status */
-  --ok: #1b7046;
-  --ok-soft: #e2f2e8;
-  --warn: #8a5d00;
-  --warn-soft: #faefd2;
-  --bad: #b42318;
-  --bad-soft: #fde7e4;
-  --busy: #1d4f91;
-  --busy-soft: #e3edf9;
+  --ok: light-dark(#1b7046, #62c392);
+  --ok-soft: light-dark(#e2f2e8, #142b1e);
+  --warn: light-dark(#8a5d00, #dfb04a);
+  --warn-soft: light-dark(#faefd2, #30270f);
+  --bad: light-dark(#b42318, #f28b7f);
+  --bad-soft: light-dark(#fde7e4, #391a17);
+  --busy: light-dark(#1d4f91, #8ab4ee);
+  --busy-soft: light-dark(#e3edf9, #16243a);
 
   /* Diff */
-  --diff-add: #e3f3e8;
-  --diff-add-mark: #1b7046;
-  --diff-del: #fde9e6;
-  --diff-del-mark: #b42318;
+  --diff-add: light-dark(#e3f3e8, #14301f);
+  --diff-add-mark: light-dark(#1b7046, #62c392);
+  --diff-del: light-dark(#fde9e6, #3a1b18);
+  --diff-del-mark: light-dark(#b42318, #f28b7f);
 
-  --focus: #1d4f91;
-  --shadow: 0 1px 2px rgb(27 26 23 / 6%), 0 8px 24px rgb(27 26 23 / 8%);
+  --focus: light-dark(#1d4f91, #8ab4ee);
+  --focus-ring: color-mix(in srgb, var(--focus) 24%, transparent);
+
+  /* Elevation: three steps, each a tight contact shadow plus a soft ambient one */
+  --shade-contact: light-dark(rgb(27 26 23 / 7%), rgb(0 0 0 / 45%));
+  --shade-ambient: light-dark(rgb(27 26 23 / 7%), rgb(0 0 0 / 40%));
+  --shadow-1: 0 1px 2px var(--shade-contact);
+  --shadow-2: 0 1px 2px var(--shade-contact), 0 6px 16px var(--shade-ambient);
+  --shadow-3: 0 2px 4px var(--shade-contact), 0 18px 44px var(--shade-ambient);
 
   /* Type */
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -70,46 +81,49 @@
   --space-8: 4.5rem;
   --space-9: 7rem;
 
-  --radius-sm: 3px;
-  --radius: 6px;
+  --radius-sm: 4px;
+  --radius: 8px;
 
   --page-width: 70rem;
   --gutter: clamp(1rem, 4vw, 2rem);
+
+  /*
+   * Motion. Four durations and four curves cover the whole app, so everything
+   * that moves, moves the same way.
+   *
+   *   instant   feedback under the pointer: hover, press
+   *   quick     small state changes: a field gaining focus, a pill changing
+   *   steady    things arriving or travelling: panels, indicators, pages
+   *   slow      large or rare moments: a section scrolling in, a line filling
+   *
+   *   ease-out      arriving: fast at first, settling gently (the default)
+   *   ease-in       leaving: gets out of the way quickly
+   *   ease-in-out   moving from one place on screen to another
+   *   spring        a little overshoot, for things that slide into place.
+   *                 Sampled from a damped spring (damping ratio 0.8), not drawn by eye.
+   */
+  --instant: 110ms;
+  --quick: 180ms;
+  --steady: 320ms;
+  --slow: 640ms;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.9, 0.4);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --spring: linear(
+    0, 0.044, 0.148, 0.279, 0.415, 0.544, 0.657, 0.753, 0.83, 0.889, 0.934, 0.966, 0.988, 1.002,
+    1.01, 1.014, 1.015, 1.015, 1.013, 1.011, 1.009, 1.007, 1.005, 1.004, 1
+  );
+
+  /* The gap between one item and the next in a staggered list */
+  --stagger: 45ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --paper: #141311;
-    --surface: #1c1b18;
-    --sunken: #0e0d0c;
+/* An explicit choice overrides the operating system's setting. */
+:root[data-theme='light'] {
+  color-scheme: light;
+}
 
-    --ink: #ece9e1;
-    --ink-2: #b5b1a6;
-    --ink-3: #858176;
-
-    --rule: #2e2c27;
-    --rule-strong: #45423a;
-
-    --accent: #f08a4b;
-    --accent-hover: #f5a06b;
-    --accent-ink: #1b1a17;
-    --accent-soft: #38230f;
-
-    --ok: #62c392;
-    --ok-soft: #142b1e;
-    --warn: #dfb04a;
-    --warn-soft: #30270f;
-    --bad: #f28b7f;
-    --bad-soft: #391a17;
-    --busy: #8ab4ee;
-    --busy-soft: #16243a;
-
-    --diff-add: #14301f;
-    --diff-add-mark: #62c392;
-    --diff-del: #3a1b18;
-    --diff-del-mark: #f28b7f;
-
-    --focus: #8ab4ee;
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 45%);
-  }
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }

@@ -6,55 +6,139 @@
  * the DOM update, and animates between the two. Browsers without the API
  * simply navigate; nothing here is required for the app to work.
  *
- * Three kinds of element take part:
+ * These elements take part:
  *
- *   root          the page content: a short cross-fade with a small rise
- *   app-header    the top bar: named so it stays put instead of fading
- *   *-title       a title shared by a list item and the page it opens, so the
- *                 text travels from the list into the heading
+ *   root            the page content. It moves along one axis, in the direction
+ *                   you are going: deeper slides in from the right, back slides
+ *                   in from the left, sideways only cross-fades
+ *   app-header      the top bar: named so it stays put instead of moving
+ *   nav-indicator   the line under the current section, which slides to the
+ *                   section you pick
+ *   auth-aside      the panel beside the sign-in form, which stays put while
+ *                   the form changes
+ *   example-run     the example on the home page, which travels into that panel
+ *   *-title         a title shared by a list item and the page it opens, so the
+ *                   text travels from the list into the heading
  *
  * A view-transition-name must be unique on a page or the browser abandons the
  * transition. That is why there is one name per kind of title, and why a list
  * item only takes its name while it is the one being opened.
  */
 
+/* ---------- the page ---------- */
+
 ::view-transition-old(root) {
-  animation: 120ms cubic-bezier(0.4, 0, 1, 1) both vt-leave;
+  animation: var(--quick) var(--ease-in) both vt-out;
 }
 
 ::view-transition-new(root) {
-  animation: 240ms cubic-bezier(0, 0, 0.2, 1) 60ms both vt-enter;
+  /* Starts just before the old page has gone, so the two never sit on top of each other */
+  animation: var(--steady) var(--ease-out) 80ms both vt-in;
 }
 
-@keyframes vt-leave {
+/* The direction is set by RootLayout from where you were and where you are going. */
+:root[data-nav='forward']::view-transition-old(root) {
+  animation-name: vt-out-to-left;
+}
+
+:root[data-nav='forward']::view-transition-new(root) {
+  animation-name: vt-in-from-right;
+}
+
+:root[data-nav='back']::view-transition-old(root) {
+  animation-name: vt-out-to-right;
+}
+
+:root[data-nav='back']::view-transition-new(root) {
+  animation-name: vt-in-from-left;
+}
+
+@keyframes vt-out {
   to {
     opacity: 0;
   }
 }
 
-@keyframes vt-enter {
+@keyframes vt-in {
   from {
     opacity: 0;
     transform: translateY(6px);
   }
 }
 
-/* ---------- the header stays where it is ---------- */
+@keyframes vt-out-to-left {
+  to {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+@keyframes vt-in-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes vt-out-to-right {
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+@keyframes vt-in-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+}
+
+/* ---------- things that stay where they are ---------- */
 
 .vt-header {
   view-transition-name: app-header;
 }
 
-::view-transition-group(app-header) {
+.vt-auth-aside {
+  view-transition-name: auth-aside;
+}
+
+::view-transition-group(app-header),
+::view-transition-group(auth-aside) {
   animation: none;
 }
 
-::view-transition-old(app-header) {
+::view-transition-old(app-header),
+::view-transition-old(auth-aside) {
   display: none;
 }
 
-::view-transition-new(app-header) {
+::view-transition-new(app-header),
+::view-transition-new(auth-aside) {
   animation: none;
+}
+
+/* ---------- the line under the current section ---------- */
+
+.vt-nav-indicator {
+  view-transition-name: nav-indicator;
+}
+
+::view-transition-group(nav-indicator) {
+  animation-duration: var(--steady);
+  animation-timing-function: var(--spring);
+}
+
+/* ---------- the example run, from the home page to the sign-in panel ---------- */
+
+.vt-example {
+  view-transition-name: example-run;
+}
+
+::view-transition-group(example-run) {
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-in-out);
 }
 
 /* ---------- titles that travel between pages ---------- */
@@ -74,8 +158,8 @@
 ::view-transition-group(project-title),
 ::view-transition-group(run-title),
 ::view-transition-group(auth-title) {
-  animation-duration: 280ms;
-  animation-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  animation-duration: var(--steady);
+  animation-timing-function: var(--ease-in-out);
 }
 
 /* The two snapshots differ in size; scale them by height instead of stretching. */
@@ -89,6 +173,40 @@
   width: auto;
   object-fit: contain;
   object-position: left center;
+}
+
+/*
+ * ---------- changing theme ----------
+ *
+ * The new theme spreads out in a circle from the button that was pressed
+ * (see lib/theme.ts, which sets data-vt and the three --vt-* values).
+ * Everything is captured as one picture for this: a header that kept its own
+ * layer would change colour at once while the page behind it was still
+ * mid-reveal.
+ */
+
+:root[data-vt='theme'] body * {
+  view-transition-name: none !important;
+}
+
+:root[data-vt='theme']::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+:root[data-vt='theme']::view-transition-new(root) {
+  animation: var(--slow) var(--ease-in-out) both vt-reveal;
+  mix-blend-mode: normal;
+}
+
+@keyframes vt-reveal {
+  from {
+    clip-path: circle(0 at var(--vt-x) var(--vt-y));
+  }
+
+  to {
+    clip-path: circle(var(--vt-radius) at var(--vt-x) var(--vt-y));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -19,6 +19,15 @@
   color: var(--ink);
 }
 
+/* The arrow leans the way the link goes */
+.back svg {
+  transition: transform var(--quick) var(--ease-out);
+}
+
+.back:hover svg {
+  transform: translateX(-3px);
+}
+
 .pageHead {
   display: flex;
   flex-wrap: wrap;
@@ -116,6 +125,7 @@
 
 .tag {
   padding: 0.1rem 0.5rem;
+  background: var(--surface);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);

@@ -1,8 +1,18 @@
 import { Link } from 'react-router'
 import { ButtonLink } from '../components/Button'
+import { ExampleRun } from '../components/ExampleRun'
 import { Logo } from '../components/Logo'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useAuth } from '../lib/auth'
+import { nth, useActiveSection, useRevealOnScroll } from '../lib/motion'
 import styles from './Landing.module.css'
+
+const SECTIONS = [
+  { id: 'how', label: 'How it works' },
+  { id: 'safeguards', label: 'Safeguards' },
+  { id: 'results', label: 'Results' },
+]
+const SECTION_IDS = SECTIONS.map((section) => section.id)
 
 const STEPS = [
   {
@@ -67,20 +77,29 @@ const RESULTS = [
 export function Landing() {
   const { session } = useAuth()
   const start = session ? '/app' : '/register'
+  const page = useRevealOnScroll<HTMLDivElement>()
+  const activeSection = useActiveSection(SECTION_IDS)
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} ref={page}>
       <header className={`${styles.header} vt-header`}>
         <div className={`container ${styles.bar}`}>
           <Link to="/" className={styles.brand} aria-label="ForgeAI home">
             <Logo />
           </Link>
           <nav className={styles.nav} aria-label="Page sections">
-            <a href="#how">How it works</a>
-            <a href="#safeguards">Safeguards</a>
-            <a href="#results">Results</a>
+            {SECTIONS.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                aria-current={activeSection === section.id ? 'true' : undefined}
+              >
+                {section.label}
+              </a>
+            ))}
           </nav>
           <div className={styles.actions}>
+            <ThemeToggle />
             {session ? (
               <ButtonLink to="/app" variant="primary">
                 Open app
@@ -100,41 +119,49 @@ export function Landing() {
       </header>
 
       <main>
-        <section className={`container ${styles.hero}`}>
-          <div className={styles.pitch}>
-            <p className="eyebrow">An AI software-engineering agent</p>
-            <h1 className={styles.headline}>
-              Hand it a task. Get back a <em>tested</em> pull request.
-            </h1>
-            <p className={styles.lede}>
-              ForgeAI reads your repository, plans the change, writes the code, runs your tests in
-              an isolated sandbox and fixes what fails. You review the pull request and decide.
-            </p>
-            <div className={styles.cta}>
-              <ButtonLink to={start} variant="primary" size="lg">
-                Start a run
-              </ButtonLink>
-              <a className={styles.textLink} href="#how">
-                See how it works
-              </a>
+        {/* The hero is on screen when the page opens, so it arrives on load, not on scroll. */}
+        <div className={styles.heroBand}>
+          <section className={`container ${styles.hero}`}>
+            <div className={styles.pitch}>
+              <p className="eyebrow enter" style={nth(0)}>
+                An AI software-engineering agent
+              </p>
+              <h1 className={`${styles.headline} enter`} style={nth(1)}>
+                Hand it a task. Get back a <em>tested</em> pull request.
+              </h1>
+              <p className={`${styles.lede} enter`} style={nth(2)}>
+                ForgeAI reads your repository, plans the change, writes the code, runs your tests
+                in an isolated sandbox and fixes what fails. You review the pull request and
+                decide.
+              </p>
+              <div className={`${styles.cta} enter`} style={nth(3)}>
+                <ButtonLink to={start} variant="primary" size="lg" arrow>
+                  Start a run
+                </ButtonLink>
+                <a className={styles.textLink} href="#how">
+                  See how it works
+                </a>
+              </div>
+              <p className={`${styles.footnote} enter`} style={nth(4)}>
+                Works with a local model through Ollama, or any OpenAI-compatible API.
+              </p>
             </div>
-            <p className={styles.footnote}>
-              Works with a local model through Ollama, or any OpenAI-compatible API.
-            </p>
-          </div>
 
-          <ExampleRun />
-        </section>
+            <div className={`${styles.exampleSlot} enter`} style={nth(3)}>
+              <ExampleRun autoplay />
+            </div>
+          </section>
+        </div>
 
         <section id="how" className={styles.band}>
           <div className={`container ${styles.split}`}>
-            <div className={styles.sectionHead}>
+            <div className={styles.sectionHead} data-reveal>
               <p className="eyebrow">How it works</p>
               <h2 className={styles.title}>Five steps, each one checked before the next.</h2>
             </div>
             <ol className={styles.steps}>
               {STEPS.map((step, index) => (
-                <li key={step.name} className={styles.step}>
+                <li key={step.name} className={styles.step} data-reveal>
                   <span className={styles.stepNumber} aria-hidden="true">
                     {String(index + 1).padStart(2, '0')}
                   </span>
@@ -149,7 +176,7 @@ export function Landing() {
         </section>
 
         <section id="safeguards" className={`container ${styles.section}`}>
-          <div className={styles.sectionHead}>
+          <div className={styles.sectionHead} data-reveal>
             <p className="eyebrow">Safeguards</p>
             <h2 className={styles.title}>Built on the assumption that the model is wrong.</h2>
             <p className={styles.sectionLede}>
@@ -158,8 +185,9 @@ export function Landing() {
             </p>
           </div>
           <ul className={styles.safeguards}>
-            {SAFEGUARDS.map((item) => (
-              <li key={item.title} className={styles.safeguard}>
+            {SAFEGUARDS.map((item, index) => (
+              // Two columns on a wide screen, so the stagger runs across each row.
+              <li key={item.title} className={styles.safeguard} data-reveal style={nth(index % 2)}>
                 <h3 className={styles.safeguardTitle}>{item.title}</h3>
                 <p className={styles.safeguardText}>{item.text}</p>
               </li>
@@ -169,7 +197,7 @@ export function Landing() {
 
         <section id="results" className={styles.band}>
           <div className="container">
-            <div className={styles.sectionHead}>
+            <div className={styles.sectionHead} data-reveal>
               <p className="eyebrow">Results</p>
               <h2 className={styles.title}>Measured, not promised.</h2>
               <p className={styles.sectionLede}>
@@ -178,24 +206,29 @@ export function Landing() {
               </p>
             </div>
             <dl className={styles.results}>
-              {RESULTS.map((result) => (
-                <div key={result.label} className={styles.result}>
+              {RESULTS.map((result, index) => (
+                <div
+                  key={result.label}
+                  className={styles.result}
+                  data-reveal
+                  style={nth(index * 2)}
+                >
                   <dt className={styles.resultLabel}>{result.label}</dt>
                   <dd className={styles.resultFigure}>{result.figure}</dd>
                   <dd className={styles.resultNote}>{result.note}</dd>
                 </div>
               ))}
             </dl>
-            <p className={styles.resultsFoot}>
+            <p className={styles.resultsFoot} data-reveal>
               The model is the limit, and it is swappable. When the agent’s tests fail, nothing is
               proposed, so a miss costs a few minutes, not a broken branch.
             </p>
           </div>
         </section>
 
-        <section className={`container ${styles.closing}`}>
+        <section className={`container ${styles.closing}`} data-reveal>
           <h2 className={styles.closingTitle}>Point it at a repository and give it a task.</h2>
-          <ButtonLink to={start} variant="primary" size="lg">
+          <ButtonLink to={start} variant="primary" size="lg" arrow>
             {session ? 'Open your projects' : 'Create an account'}
           </ButtonLink>
         </section>
@@ -208,55 +241,5 @@ export function Landing() {
         </div>
       </footer>
     </div>
-  )
-}
-
-/** A real run from this project’s demo repository, shown as the product would show it. */
-function ExampleRun() {
-  const steps = [
-    'Read the repository at one commit',
-    'Planned the change',
-    'Wrote the code',
-    'Tests passed in the sandbox',
-    'Opened pull request #1',
-  ]
-
-  return (
-    <figure className={styles.example}>
-      <div className={styles.exampleHead}>
-        <span className="mono">demo / registration-service</span>
-        <span className={styles.exampleStatus}>Pull request open</span>
-      </div>
-      <p className={styles.exampleTask}>
-        Add GET /health that returns HTTP 200 with the JSON body {'{"status": "ok"}'}.
-      </p>
-      <ol className={styles.exampleSteps}>
-        {steps.map((step) => (
-          <li key={step}>
-            <span className={styles.check} aria-hidden="true">
-              ✓
-            </span>
-            {step}
-          </li>
-        ))}
-      </ol>
-      <dl className={styles.exampleMeta}>
-        <div>
-          <dt>Total</dt>
-          <dd>4 min 05 s</dd>
-        </div>
-        <div>
-          <dt>Sandbox</dt>
-          <dd>15.6 s</dd>
-        </div>
-        <div>
-          <dt>Attempts</dt>
-          <dd>1</dd>
-        </div>
-      </dl>
-      <figcaption className={styles.exampleCaption}>
-        A real run on this project’s demo repository, using a local model.
-      </figcaption>
-    </figure>
   )
 }

@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { LinkProps } from 'react-router'
+import { Icon } from './Icon'
 import styles from './Button.module.css'
 
 type Variant = 'primary' | 'secondary' | 'quiet' | 'danger'
@@ -43,8 +44,9 @@ export function Button({
       aria-busy={busy || undefined}
       {...rest}
     >
+      {/* The label keeps its place while busy, so the button never changes width. */}
+      <span className={styles.label}>{children}</span>
       {busy && <span className={styles.spinner} aria-hidden="true" />}
-      {children}
     </button>
   )
 }
@@ -54,13 +56,17 @@ export function ButtonLink({
   variant,
   size,
   block,
+  arrow = false,
   className,
   children,
   ...rest
-}: LinkProps & Appearance) {
+}: LinkProps & Appearance & { /** A trailing arrow, for a link that moves you forward. */ arrow?: boolean }) {
   return (
     <Link viewTransition className={classes({ variant, size, block }, className)} {...rest}>
-      {children}
+      <span className={styles.label}>
+        {children}
+        {arrow && <Icon name="arrowRight" className={styles.forward} />}
+      </span>
     </Link>
   )
 }
@@ -81,8 +87,10 @@ export function ButtonAnchor({
       target="_blank"
       rel="noreferrer"
     >
-      {children}
-      <span aria-hidden="true">↗</span>
+      <span className={styles.label}>
+        {children}
+        <Icon name="arrowUpRight" className={styles.outward} />
+      </span>
       <span className="visually-hidden">(opens in a new tab)</span>
     </a>
   )

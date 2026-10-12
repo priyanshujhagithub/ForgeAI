@@ -1,4 +1,5 @@
 .list {
+  position: relative;
   display: flex;
   gap: var(--space-5);
   border-bottom: 1px solid var(--rule);
@@ -16,14 +17,13 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) 0;
-  margin-bottom: -1px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
   color: var(--ink-2);
   font-size: var(--text-sm);
   font-weight: 500;
   white-space: nowrap;
+  transition: color var(--quick) var(--ease-out);
 }
 
 .tab:hover {
@@ -31,8 +31,27 @@
 }
 
 .active {
-  border-bottom-color: var(--accent);
   color: var(--ink);
+}
+
+/*
+ * The line under the selected tab. It is one pixel wide and stretched to the
+ * tab's width, so moving and resizing are both a transform, which the browser
+ * can animate without laying the page out again.
+ */
+.line {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left;
+  transform: translateX(var(--line-x, 0)) scaleX(var(--line-width, 0));
+}
+
+.list[data-placed] .line {
+  transition: transform var(--steady) var(--spring);
 }
 
 .count {
@@ -41,7 +60,16 @@
   background: var(--sunken);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--ink-2);
+  animation: pop var(--steady) var(--spring) backwards;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
 }
 
 .panel {

@@ -10,9 +10,29 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--paper) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
   border-bottom: 1px solid var(--rule);
+}
+
+/*
+ * At the top of the page the bar has no edge at all. The line and the shadow
+ * appear over the first few pixels of scrolling, tied to the scroll position.
+ */
+@supports (animation-timeline: scroll()) {
+  .header {
+    border-bottom-color: transparent;
+    animation: settle linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 3rem;
+  }
+
+  @keyframes settle {
+    to {
+      border-bottom-color: var(--rule);
+      box-shadow: var(--shadow-2);
+    }
+  }
 }
 
 .bar {
@@ -35,20 +55,56 @@
 }
 
 .nav a {
+  position: relative;
+  padding-block: var(--space-1);
   text-decoration: none;
 }
 
-.nav a:hover {
+/* The link for the section being read is underlined; the line grows from the left. */
+.nav a::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--steady) var(--ease-out);
+}
+
+.nav a:hover,
+.nav a[aria-current] {
   color: var(--ink);
+}
+
+.nav a[aria-current]::after {
+  transform: none;
 }
 
 .actions {
   display: flex;
+  align-items: center;
   gap: var(--space-2);
   margin-left: auto;
 }
 
 /* ---------- hero ---------- */
+
+/* A faint grid of dots behind the hero, fading out towards the edges */
+.heroBand {
+  position: relative;
+  isolation: isolate;
+}
+
+.heroBand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(var(--rule-strong) 1px, transparent 1px);
+  background-size: 1.5rem 1.5rem;
+  mask-image: radial-gradient(ellipse 60% 75% at 72% 40%, rgb(0 0 0 / 55%), transparent);
+}
 
 .hero {
   display: grid;
@@ -72,8 +128,29 @@
 
 /* The one word the product stands on gets the one accent colour */
 .headline em {
+  position: relative;
+  display: inline-block;
   font-style: italic;
   color: var(--accent);
+}
+
+/* ...and is underlined by hand, once the headline has arrived */
+.headline em::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0.04em 0.04em;
+  height: 0.055em;
+  border-radius: 1em;
+  background: currentColor;
+  opacity: 0.4;
+  transform-origin: left;
+  animation: underline var(--slow) var(--ease-in-out) 650ms backwards;
+}
+
+@keyframes underline {
+  from {
+    transform: scaleX(0);
+  }
 }
 
 .lede {
@@ -98,104 +175,9 @@
   color: var(--ink-3);
 }
 
-/* ---------- example run ---------- */
-
-.example {
+.exampleSlot {
   align-self: center;
-  background: var(--surface);
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.exampleHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--rule);
-  font-size: var(--text-sm);
-  color: var(--ink-2);
-}
-
-.exampleStatus {
-  padding: 0.1rem 0.55rem;
-  border-radius: 999px;
-  background: var(--ok-soft);
-  color: var(--ok);
-  font-size: var(--text-xs);
-  font-weight: 500;
-}
-
-.exampleTask {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--rule);
-  font-size: var(--text-md);
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.exampleSteps {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  font-size: var(--text-sm);
-}
-
-.exampleSteps li {
-  display: flex;
-  gap: var(--space-3);
-}
-
-.check {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 0.65rem;
-}
-
-.exampleMeta {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--rule);
-}
-
-.exampleMeta > div {
-  padding: var(--space-3) var(--space-4);
-}
-
-.exampleMeta > div + div {
-  border-left: 1px solid var(--rule);
-}
-
-.exampleMeta dt {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-}
-
-.exampleMeta dd {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 500;
-}
-
-.exampleCaption {
-  padding: var(--space-3) var(--space-4);
-  border-top: 1px solid var(--rule);
-  background: var(--sunken);
-  border-radius: 0 0 var(--radius) var(--radius);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
+  min-width: 0;
 }
 
 /* ---------- sections ---------- */
@@ -236,6 +218,7 @@
 /* ---------- how it works ---------- */
 
 .steps {
+  position: relative;
   display: grid;
 }
 
@@ -299,10 +282,29 @@
 }
 
 .result {
+  position: relative;
   display: grid;
   gap: var(--space-1);
   padding-top: var(--space-4);
-  border-top: 2px solid var(--ink);
+}
+
+/* The rule above each figure is drawn from the left as the figure scrolls in */
+.result::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: var(--ink);
+  transform-origin: left;
+}
+
+.result[data-reveal-state='pending']::before {
+  transform: scaleX(0);
+}
+
+.result[data-reveal-state='shown']::before {
+  transition: transform var(--slow) var(--ease-in-out);
+  transition-delay: calc(var(--i, 0) * var(--stagger) + 120ms);
 }
 
 .resultLabel {
@@ -404,5 +406,47 @@
   .step:first-child {
     padding-top: 0;
     border-top: none;
+  }
+
+  /*
+   * A line beside the steps fills as you read down them. It is driven by the
+   * scroll position, not by a clock: it measures how far a point 45% of the
+   * way down the window has travelled through the list, so scrolling back up
+   * empties it again. Browsers without scroll-driven animations show no line.
+   */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .steps {
+        view-timeline-name: --steps;
+        view-timeline-inset: 45% 55%;
+      }
+
+      .steps::before,
+      .steps::after {
+        content: '';
+        position: absolute;
+        inset: 0 auto 0 calc(-1 * var(--space-6));
+        width: 2px;
+        border-radius: 2px;
+      }
+
+      .steps::before {
+        background: var(--rule-strong);
+      }
+
+      .steps::after {
+        background: var(--accent);
+        transform-origin: top;
+        animation: fill linear both;
+        animation-timeline: --steps;
+        animation-range: cover;
+      }
+
+      @keyframes fill {
+        from {
+          transform: scaleY(0);
+        }
+      }
+    }
   }
 }

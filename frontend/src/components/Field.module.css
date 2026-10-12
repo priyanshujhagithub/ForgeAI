@@ -17,21 +17,30 @@
   border-radius: var(--radius-sm);
   /* 16px stops iOS from zooming the page when a field is focused */
   font-size: 1rem;
-  transition: border-color 120ms ease;
+  /* Kept, though invisible, so the focus state still shows in forced-colours mode */
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition:
+    border-color var(--quick) var(--ease-out),
+    box-shadow var(--quick) var(--ease-out);
 }
 
 .control:hover {
   border-color: var(--ink-3);
 }
 
+/* The ring grows out of the border instead of snapping on */
 .control:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
   border-color: var(--focus);
+  box-shadow: 0 0 0 3px var(--focus-ring);
 }
 
 .control[aria-invalid='true'] {
   border-color: var(--bad);
+}
+
+.control[aria-invalid='true']:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 22%, transparent);
 }
 
 .control::placeholder {
@@ -66,4 +75,12 @@
 .error {
   font-size: var(--text-sm);
   color: var(--bad);
+  animation: drop var(--quick) var(--ease-out) backwards;
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
 }

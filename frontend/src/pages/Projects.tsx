@@ -1,9 +1,11 @@
 import { Link, NavLink } from 'react-router'
 import { Button, ButtonLink } from '../components/Button'
-import { EmptyState, Skeleton } from '../components/Feedback'
+import { CardSkeleton, EmptyState } from '../components/Feedback'
+import { Icon } from '../components/Icon'
 import { ErrorNotice, Notice } from '../components/Notice'
 import { StatusPill } from '../components/StatusPill'
 import { timeAgo } from '../lib/format'
+import { nth } from '../lib/motion'
 import { useConnection, useDeleteProject, useProjects, useRuns } from '../lib/queries'
 import type { Project } from '../lib/types'
 import shared from './shared.module.css'
@@ -40,7 +42,15 @@ export function Projects() {
         </Notice>
       )}
 
-      {projects.isLoading && <Skeleton lines={4} />}
+      {projects.isLoading && (
+        <ul className={styles.grid}>
+          {[0, 1, 2].map((index) => (
+            <li key={index}>
+              <CardSkeleton />
+            </li>
+          ))}
+        </ul>
+      )}
       {projects.isError && <ErrorNotice error={projects.error} title="Could not load projects" />}
 
       {projects.data?.length === 0 && !needsGitHub && (
@@ -58,8 +68,9 @@ export function Projects() {
 
       {projects.data && projects.data.length > 0 && (
         <ul className={styles.grid}>
-          {projects.data.map((project) => (
-            <li key={project.id}>
+          {projects.data.map((project, index) => (
+            // Fades without moving: the card holds a title shared with the project page.
+            <li key={project.id} className="enter-fade" style={nth(index)}>
               {project.githubRepoName ? (
                 <ProjectCard project={project} />
               ) : (
@@ -84,6 +95,7 @@ function ProjectCard({ project }: { project: Project }) {
           <span className={styles.repo}>
             {project.githubOwner}/{project.githubRepoName}
           </span>
+          <Icon name="arrowRight" className={styles.open} />
           {/* Only the card being opened shares its title with the next page. */}
           <span className={`${styles.name} ${isTransitioning ? 'vt-project-title' : ''}`}>
             {project.name}

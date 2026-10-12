@@ -2,10 +2,13 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { Button } from '../components/Button'
+import { ExampleRun } from '../components/ExampleRun'
 import { TextField } from '../components/Field'
 import { Logo } from '../components/Logo'
 import { ErrorNotice } from '../components/Notice'
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useAuth } from '../lib/auth'
+import { nth } from '../lib/motion'
 import styles from './Auth.module.css'
 
 const MIN_PASSWORD = 8
@@ -69,59 +72,76 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <Link to="/" viewTransition className={styles.brand} aria-label="ForgeAI home">
-          <Logo />
-        </Link>
-      </header>
+      <div className={styles.side}>
+        <header className={styles.header}>
+          <Link to="/" viewTransition className={styles.brand} aria-label="ForgeAI home">
+            <Logo />
+          </Link>
+          <ThemeToggle />
+        </header>
 
-      <main className={styles.main}>
-        <div className={styles.card}>
-          <h1 className={`${styles.title} vt-auth-title`}>{copy.title}</h1>
-          <p className={styles.lede}>{copy.lede}</p>
+        <main className={styles.main}>
+          <div className={styles.card}>
+            {/* Shared between sign-in and registration, so it is left out of the entrance. */}
+            <h1 className={`${styles.title} vt-auth-title`}>{copy.title}</h1>
+            <p className={`${styles.lede} enter`} style={nth(0)}>
+              {copy.lede}
+            </p>
 
-          <form className={styles.form} onSubmit={onSubmit}>
-            {error !== null && (
-              <ErrorNotice
-                error={error}
-                title={mode === 'login' ? 'Could not sign in' : 'Could not create the account'}
+            <form className={`${styles.form} enter`} style={nth(1)} onSubmit={onSubmit}>
+              {error !== null && (
+                <ErrorNotice
+                  error={error}
+                  title={mode === 'login' ? 'Could not sign in' : 'Could not create the account'}
+                />
+              )}
+
+              <TextField
+                label="Email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
               />
-            )}
+              <TextField
+                label="Password"
+                type="password"
+                name="password"
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                required
+                value={password}
+                error={passwordError}
+                hint={mode === 'register' ? `At least ${MIN_PASSWORD} characters.` : undefined}
+                onChange={(event) => setPassword(event.target.value)}
+              />
 
-            <TextField
-              label="Email"
-              type="email"
-              name="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            <TextField
-              label="Password"
-              type="password"
-              name="password"
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              required
-              value={password}
-              error={passwordError}
-              hint={mode === 'register' ? `At least ${MIN_PASSWORD} characters.` : undefined}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+              <Button type="submit" variant="primary" size="lg" block busy={busy}>
+                {copy.submit}
+              </Button>
+            </form>
 
-            <Button type="submit" variant="primary" size="lg" block busy={busy}>
-              {copy.submit}
-            </Button>
-          </form>
+            <p className={`${styles.switch} enter`} style={nth(2)}>
+              {copy.switchText}{' '}
+              <Link to={copy.switchTo} state={location.state} viewTransition>
+                {copy.switchLink}
+              </Link>
+            </p>
+          </div>
+        </main>
+      </div>
 
-          <p className={styles.switch}>
-            {copy.switchText}{' '}
-            <Link to={copy.switchTo} state={location.state} viewTransition>
-              {copy.switchLink}
-            </Link>
+      {/* Wide screens only. It stays put while the form changes beside it. */}
+      <aside className={`${styles.aside} vt-auth-aside`} aria-label="What a run looks like">
+        <div className={styles.asideInner}>
+          <p className="eyebrow">What a run looks like</p>
+          <ExampleRun />
+          <p className={styles.asideNote}>
+            Every run ends in a pull request for you to review, or in nothing at all.
           </p>
         </div>
-      </main>
+      </aside>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Button, ButtonLink } from '../components/Button'
 import { Skeleton } from '../components/Feedback'
+import { Icon } from '../components/Icon'
 import { SelectField, TextField } from '../components/Field'
 import { ErrorNotice, Notice } from '../components/Notice'
 import { useConnection, useCreateProject, useRepositories } from '../lib/queries'
@@ -39,7 +40,7 @@ export function NewProject() {
   return (
     <div className={`${shared.stack} ${shared.narrow}`}>
       <Link to="/app" viewTransition className={shared.back}>
-        <span aria-hidden="true">←</span> Projects
+        <Icon name="arrowLeft" /> Projects
       </Link>
 
       <header>
@@ -68,7 +69,7 @@ export function NewProject() {
       {connected && repositories.isLoading && <Skeleton lines={3} />}
 
       {repositories.data && (
-        <form className={shared.form} onSubmit={onSubmit}>
+        <form className={`${shared.form} enter`} onSubmit={onSubmit}>
           {create.isError && <ErrorNotice error={create.error} title="Could not create the project" />}
 
           <SelectField

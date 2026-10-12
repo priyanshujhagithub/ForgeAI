@@ -1,18 +1,34 @@
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-weight: 500;
   line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
+  user-select: none;
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background-color var(--quick) var(--ease-out),
+    border-color var(--quick) var(--ease-out),
+    color var(--quick) var(--ease-out),
+    box-shadow var(--quick) var(--ease-out),
+    transform var(--quick) var(--ease-out);
+}
+
+/* Pressing in is immediate; letting go eases back out with the transition above. */
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+  transition-duration: 60ms;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: opacity var(--instant) ease;
 }
 
 .md {
@@ -36,12 +52,14 @@
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
+  box-shadow: var(--shadow-1);
 }
 
 .primary:hover:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
+  box-shadow: var(--shadow-2);
 }
 
 .secondary {
@@ -76,21 +94,61 @@
 }
 
 .button:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
 }
 
+.button:disabled:not([aria-busy='true']) {
+  opacity: 0.55;
+}
+
+/* ---------- busy ---------- */
+
+.button[aria-busy='true'] {
+  cursor: progress;
+}
+
+.button[aria-busy='true'] .label {
+  opacity: 0;
+}
+
 .spinner {
-  width: 0.85em;
-  height: 0.85em;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
+  position: absolute;
+  inset: 0;
+  width: 1em;
+  height: 1em;
+  margin: auto;
+  border: 2px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-top-color: currentColor;
   border-radius: 50%;
-  animation: spin 700ms linear infinite;
+  animation:
+    spin 650ms linear infinite,
+    appear var(--quick) ease backwards;
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- arrows that lean the way the link goes ---------- */
+
+.forward,
+.outward {
+  flex: none;
+  transition: transform var(--quick) var(--ease-out);
+}
+
+.button:hover .forward {
+  transform: translateX(3px);
+}
+
+.button:hover .outward {
+  transform: translate(2px, -2px);
 }
