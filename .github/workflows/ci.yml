@@ -62,3 +62,14 @@ jobs:
       # Browser tests drive the real app in Chromium against a mocked API.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+
+  images:
+    name: Deployable images
+    runs-on: ubuntu-latest
+    # The images Render builds from render.yaml. Building them here catches a
+    # broken Dockerfile, or a Java service that no longer starts without a
+    # database (the class-archive training run), before a deploy does.
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t forgeai-api services/project-service
+      - run: docker build -t forgeai-ai services/ai-service

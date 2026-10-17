@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.analyzer import RepositoryAnalyzer
+from app.config import Settings
 from app.correction_loop import CorrectionLoop
 from app.generator import CodeGenerator
 from app.llm import LLMOutputError, LLMUnavailableError
@@ -218,3 +219,40 @@ def test_solve_reports_an_unavailable_sandbox_as_a_result_not_an_error(client):
     assert response.status_code == 200
     assert response.json()["result"]["outcome"] == "sandbox_unavailable"
     assert len(response.json()["result"]["finalChanges"]) == 2
+
+
+def require_token(monkeypatch, token: str):
+    monkeypatch.setattr("app.main.get_settings", lambda: Settings(service_token=token))
+
+
+def test_with_a_service_token_set_a_call_without_it_is_refused(client, monkeypatch):
+    require_token(monkeypatch, "s3cret")
+    llm, _ = make_llm([VALID_ANALYSIS])
+    use_analyzer(RepositoryAnalyzer(llm))
+
+    refused = client.post("/api/v1/analyze", json=REQUEST_BODY)
+    wrong = client.post(
+        "/api/v1/analyze", json=REQUEST_BODY, headers={"X-Service-Token": "guess"}
+    )
+
+    assert refused.status_code == 401
+    assert wrong.status_code == 401
+    assert refused.json() == {"detail": "Missing or wrong service token."}
+
+
+def test_with_a_service_token_set_the_right_one_is_let_through(client, monkeypatch):
+    require_token(monkeypatch, "s3cret")
+    llm, _ = make_llm([VALID_ANALYSIS])
+    use_analyzer(RepositoryAnalyzer(llm))
+
+    response = client.post(
+        "/api/v1/analyze", json=REQUEST_BODY, headers={"X-Service-Token": "s3cret"}
+    )
+
+    assert response.status_code == 200
+
+
+def test_health_needs_no_service_token(client, monkeypatch):
+    require_token(monkeypatch, "s3cret")
+
+    assert client.get("/health").status_code == 200

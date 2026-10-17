@@ -1,5 +1,6 @@
 """FastAPI routes only. Schemas live in schemas.py; model logic in the other modules."""
 
+import hmac
 from functools import lru_cache
 
 from fastapi import Depends, FastAPI, Request
@@ -32,6 +33,28 @@ from .schemas import (
 from .tracing import Tracer
 
 app = FastAPI(title="ForgeAI AI Service")
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings.from_env()
+
+
+@app.middleware("http")
+async def require_service_token(request: Request, call_next):
+    """Answer only the project service once a shared secret is configured.
+
+    /health stays open so the host can check the service is up.
+    """
+    expected = get_settings().service_token
+    if expected and request.url.path != "/health":
+        presented = request.headers.get("x-service-token", "")
+        # Constant-time comparison: response timing reveals nothing about the secret.
+        if not hmac.compare_digest(presented.encode(), expected.encode()):
+            return JSONResponse(
+                status_code=401, content={"detail": "Missing or wrong service token."}
+            )
+    return await call_next(request)
 
 
 @lru_cache

@@ -222,6 +222,30 @@ describe('api', () => {
     )
   })
 
+  it('calls the API at its own address when the app is hosted apart from it', async () => {
+    vi.stubEnv('VITE_API_URL', 'https://forgeai-api.example.com/')
+    vi.resetModules()
+    try {
+      const hosted = await import('./api')
+      respond(200, [])
+
+      await hosted.api.projects()
+
+      // The trailing slash in the setting does not double up.
+      expect(fetchMock.mock.calls[0][0]).toBe('https://forgeai-api.example.com/api/v1/projects')
+    } finally {
+      vi.unstubAllEnvs()
+      vi.resetModules()
+    }
+  })
+
+  it('wakes the server without failing when it cannot be reached', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    await expect(api.wake()).resolves.toBeUndefined()
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/wake')
+  })
+
   it('handles an empty 204 reply', async () => {
     writeSession(token({ email: 'ada@example.com', exp: inOneHour() }))
     respond(204)

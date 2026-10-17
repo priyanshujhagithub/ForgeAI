@@ -1,6 +1,14 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { activeRun, completedRun, failedRun, mockApi, signIn, untestedRun } from './mockApi'
+import {
+  activeRun,
+  completedRun,
+  failedRun,
+  fakeToken,
+  mockApi,
+  signIn,
+  untestedRun,
+} from './mockApi'
 
 // The real app in a real browser, at desktop and phone sizes, against a mocked API.
 
@@ -416,5 +424,36 @@ test.describe('theme', () => {
     await expect(appearance.getByRole('radio', { name: 'System' })).toBeChecked()
     expect(await theme(page)).toBeUndefined()
     expect(await paper(page)).toBe(dark)
+  })
+})
+
+test.describe('free hosting', () => {
+  test('opening the app wakes the server', async ({ page }) => {
+    await mockApi(page)
+    const woken = page.waitForRequest((request) => request.url().endsWith('/api/v1/wake'))
+
+    await page.goto('/')
+
+    await woken
+  })
+
+  test('a slow sign-in explains that the server is starting', async ({ page }) => {
+    await mockApi(page)
+    // Answer the sign-in only after a while, as a server starting up would.
+    await page.route('**/api/v1/auth/login', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 5_500))
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ accessToken: fakeToken() }),
+      })
+    })
+    await page.goto('/login')
+
+    await page.getByLabel('Email').fill('ada@example.com')
+    await page.getByLabel('Password').fill('correct-horse')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+
+    await expect(page.getByText('Waking the server')).toBeVisible({ timeout: 6_000 })
+    await expect(page).toHaveURL(/\/app$/, { timeout: 10_000 })
   })
 })

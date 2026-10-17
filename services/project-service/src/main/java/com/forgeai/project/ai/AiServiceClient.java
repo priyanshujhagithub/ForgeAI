@@ -27,6 +27,8 @@ import java.time.Duration;
 @Component
 public class AiServiceClient {
 
+    static final String SERVICE_TOKEN_HEADER = "X-Service-Token";
+
     private final RestClient restClient;
     // Same service, longer read timeout: a solve call runs several model
     // calls and sandbox attempts before it answers.
@@ -40,17 +42,23 @@ public class AiServiceClient {
             @Value("${ai-service.base-url}") String baseUrl,
             @Value("${ai-service.connect-timeout}") Duration connectTimeout,
             @Value("${ai-service.read-timeout}") Duration readTimeout,
-            @Value("${ai-service.solve-read-timeout}") Duration solveReadTimeout
+            @Value("${ai-service.solve-read-timeout}") Duration solveReadTimeout,
+            @Value("${ai-service.token:}") String token
     ) {
+        builder.baseUrl(baseUrl);
+        // Deployed, the AI service is reachable from the internet, so it only
+        // answers callers that present this shared secret. Blank locally.
+        if (!token.isBlank()) {
+            builder.defaultHeader(SERVICE_TOKEN_HEADER, token);
+        }
+
         // A local model can take minutes per call, so the read timeouts are long
         // and explicit rather than the JDK default of "wait forever".
         this.restClient = builder
-                .baseUrl(baseUrl)
                 .requestFactory(requestFactory(connectTimeout, readTimeout))
                 .build();
 
         this.solveRestClient = builder
-                .baseUrl(baseUrl)
                 .requestFactory(requestFactory(connectTimeout, solveReadTimeout))
                 .build();
 
@@ -76,6 +84,18 @@ public class AiServiceClient {
         requestFactory.setConnectTimeout(connectTimeout);
         requestFactory.setReadTimeout(readTimeout);
         return requestFactory;
+    }
+
+    // Starts the AI service if its host has put it to sleep, without waiting
+    // for it: the caller is a page load and should not be held up.
+    public void wakeUp() {
+        Thread.ofVirtual().name("wake-ai-service").start(() -> {
+            try {
+                restClient.get().uri("/health").retrieve().toBodilessEntity();
+            } catch (RuntimeException ignored) {
+                // Still asleep or unreachable: the next real request will say so.
+            }
+        });
     }
 
     public RepositoryAnalysisResponse analyzeRepository(

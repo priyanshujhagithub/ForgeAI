@@ -4,10 +4,13 @@ import com.forgeai.project.entity.AgentRun;
 import com.forgeai.project.entity.AgentRunStatus;
 import com.forgeai.project.exception.AgentRunAlreadyActiveException;
 import com.forgeai.project.exception.AgentRunNotFoundException;
+import com.forgeai.project.exception.RunLimitReachedException;
+import com.forgeai.project.exception.RunsNotAllowedException;
 import com.forgeai.project.mapper.AgentRunMapper;
 import com.forgeai.project.security.AuthenticatedUser;
 import com.forgeai.project.security.JwtAuthenticationFilter;
 import com.forgeai.project.service.AgentRunService;
+import com.forgeai.project.service.RunAllowance;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -46,6 +50,9 @@ class AgentRunControllerTest {
 
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private RunAllowance runAllowance;
 
     @BeforeEach
     void authenticateAsUserTwo() {
@@ -168,5 +175,42 @@ class AgentRunControllerTest {
         run.setTask("Add input validation");
         run.setStatus(status);
         return run;
+    }
+
+    @Test
+    void startRun_shouldRefuseAnAccountThatMayNotStartRuns() throws Exception {
+        doThrow(new RunsNotAllowedException())
+                .when(runAllowance).check(2L, "developer2@forgeai.local");
+
+        mockMvc.perform(
+                        post("/api/v1/projects/5/runs")
+                                .contentType("application/json")
+                                .content("""
+                                        {"task": "Add input validation"}
+                                        """)
+                )
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value(
+                        "This ForgeAI deployment only starts runs for invited accounts"
+                ));
+
+        verifyNoInteractions(agentRunService);
+    }
+
+    @Test
+    void startRun_shouldSayWhenTheDailyLimitIsReached() throws Exception {
+        doThrow(new RunLimitReachedException(5))
+                .when(runAllowance).check(2L, "developer2@forgeai.local");
+
+        mockMvc.perform(
+                        post("/api/v1/projects/5/runs")
+                                .contentType("application/json")
+                                .content("""
+                                        {"task": "Add input validation"}
+                                        """)
+                )
+                .andExpect(status().isTooManyRequests());
+
+        verifyNoInteractions(agentRunService);
     }
 }

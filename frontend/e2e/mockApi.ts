@@ -315,6 +315,7 @@ export async function mockApi(page: Page, options: MockOptions = {}) {
         : json(route, { accessToken: fakeToken() })
     }
     if (path === '/auth/register') return json(route, { id: 3 })
+    if (path === '/wake' || path === '/health') return json(route, { status: 'ok' })
     if (path === '/github/connection') {
       return json(route, { connected, githubUsername: connected ? 'octocat' : null })
     }

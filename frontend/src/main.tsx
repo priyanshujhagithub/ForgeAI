@@ -16,7 +16,7 @@ import './styles/tokens.css'
 import './styles/base.css'
 import './styles/transitions.css'
 
-import { ApiError } from './lib/api'
+import { ApiError, api } from './lib/api'
 import { AuthProvider } from './components/AuthProvider'
 import { router } from './router'
 
@@ -30,6 +30,9 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Free hosting stops idle services. Wake them now, not at the first click.
+void api.wake()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

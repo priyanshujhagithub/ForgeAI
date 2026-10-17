@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { Button } from '../components/Button'
 import { ExampleRun } from '../components/ExampleRun'
 import { TextField } from '../components/Field'
 import { Logo } from '../components/Logo'
-import { ErrorNotice } from '../components/Notice'
+import { ErrorNotice, Notice } from '../components/Notice'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useAuth } from '../lib/auth'
 import { nth } from '../lib/motion'
 import styles from './Auth.module.css'
 
 const MIN_PASSWORD = 8
+
+// A sign-in slower than this is almost always a server starting up.
+const SLOW_MS = 4000
 
 const COPY = {
   login: {
@@ -32,6 +35,20 @@ const COPY = {
   },
 }
 
+/** True once `busy` has lasted longer than SLOW_MS, until it ends. */
+function useSlow(busy: boolean): boolean {
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!busy) return
+    const timer = setTimeout(() => setSlow(true), SLOW_MS)
+    return () => {
+      clearTimeout(timer)
+      setSlow(false)
+    }
+  }, [busy])
+  return slow
+}
+
 /** Sign-in and registration share one form; `mode` picks the wording and the call. */
 export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { session, signIn, signUp } = useAuth()
@@ -44,6 +61,7 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [error, setError] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
+  const slow = useSlow(busy)
 
   // Where the user was heading before being asked to sign in.
   const destination = (location.state as { from?: string } | null)?.from ?? '/app'
@@ -120,6 +138,13 @@ export function AuthPage({ mode }: { mode: 'login' | 'register' }) {
               <Button type="submit" variant="primary" size="lg" block busy={busy}>
                 {copy.submit}
               </Button>
+
+              {slow && (
+                <Notice tone="busy" title="Waking the server" role="status">
+                  ForgeAI runs on free hosting, which stops the server when nobody is using it.
+                  The first sign-in after a quiet spell can take a minute or two.
+                </Notice>
+              )}
             </form>
 
             <p className={`${styles.switch} enter`} style={nth(2)}>

@@ -42,6 +42,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         );
     }
 
+    @ExceptionHandler(RunsNotAllowedException.class)
+    public ProblemDetail handleRunsNotAllowed(RunsNotAllowedException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.FORBIDDEN,
+                exception.getMessage()
+        );
+    }
+
+    @ExceptionHandler(RunLimitReachedException.class)
+    public ProblemDetail handleRunLimitReached(RunLimitReachedException exception){
+        return ProblemDetail.forStatusAndDetail(
+                HttpStatus.TOO_MANY_REQUESTS,
+                exception.getMessage()
+        );
+    }
+
     @ExceptionHandler(ProjectNotFoundException.class)
     public ProblemDetail handleProjectNotFound(ProjectNotFoundException exception){
         return ProblemDetail.forStatusAndDetail(

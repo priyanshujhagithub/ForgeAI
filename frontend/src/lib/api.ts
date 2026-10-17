@@ -18,6 +18,9 @@ export class ApiError extends Error {
   }
 }
 
+/** Empty when the API is on this same address; see vite-env.d.ts. */
+const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/+$/, '')
+
 interface RequestOptions {
   body?: unknown
   /** Login and registration are the only calls made without a token. */
@@ -33,7 +36,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 
   let response: Response
   try {
-    response = await fetch(path, {
+    response = await fetch(API_ORIGIN + path, {
       method,
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -70,6 +73,13 @@ async function errorDetail(response: Response): Promise<string> {
 const v1 = '/api/v1'
 
 export const api = {
+  /**
+   * Starts the API, and through it the AI service, if the host has put them
+   * to sleep. Fire and forget: called when the app opens, so the services
+   * are warming up while the visitor reads the page.
+   */
+  wake: () => request<unknown>('GET', `${v1}/wake`, { anonymous: true }).catch(() => undefined),
+
   login: (email: string, password: string) =>
     request<{ accessToken: string }>('POST', `${v1}/auth/login`, {
       body: { email, password },

@@ -59,6 +59,11 @@ class Settings:
     # How much failing test output is shown to the model.
     feedback_output_chars: int = 3_000
 
+    # Shared secret the project service sends in X-Service-Token. Deployed, this
+    # service is reachable from the internet and every call spends model and
+    # sandbox quota, so it answers no one else. Blank (local) means no check.
+    service_token: str = ""
+
     # Langfuse tracing. Blank keys turn tracing off.
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""
@@ -128,6 +133,7 @@ class Settings:
             feedback_output_chars=int(
                 os.getenv("FEEDBACK_OUTPUT_CHARS", defaults.feedback_output_chars)
             ),
+            service_token=os.getenv("AI_SERVICE_TOKEN", defaults.service_token),
             langfuse_public_key=os.getenv("LANGFUSE_PUBLIC_KEY", defaults.langfuse_public_key),
             langfuse_secret_key=os.getenv("LANGFUSE_SECRET_KEY", defaults.langfuse_secret_key),
             langfuse_base_url=os.getenv("LANGFUSE_BASE_URL")

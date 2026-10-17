@@ -1,0 +1,127 @@
+# Render Blueprint: all of ForgeAI on Render's free plan, at no cost.
+#
+#   forgeai-web   the React app, as a static site
+#   forgeai-api   the Spring Boot service (Docker, free instance)
+#   forgeai-ai    the FastAPI service (Docker, free instance)
+#
+# The database is Neon's free Postgres, the model is Gemini's free API tier,
+# and code runs in E2B sandboxes; none of those run on Render.
+#
+# Step-by-step instructions are in docs/deployment.md. Values marked
+# `sync: false` are asked for when the Blueprint is first applied and are
+# never stored in this file.
+
+services:
+  - type: web
+    name: forgeai-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    buildFilter:
+      paths:
+        - frontend/**
+    envVars:
+      # The address of forgeai-api, for example https://forgeai-api.onrender.com
+      - key: VITE_API_URL
+        sync: false
+    routes:
+      # The app routes in the browser: every path serves index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: web
+    name: forgeai-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./services/project-service/Dockerfile
+    dockerContext: ./services/project-service
+    # Answers from the process alone, so health checks never wake the database.
+    healthCheckPath: /api/v1/health
+    buildFilter:
+      paths:
+        - services/project-service/**
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      # Neon, as jdbc:postgresql://<host>/<database>?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_USERNAME
+        sync: false
+      - key: DATABASE_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      # 32 random bytes, base64 (see docs/deployment.md for a command)
+      - key: FORGEAI_ENCRYPTION_KEY
+        sync: false
+      # From a GitHub OAuth app made for this deployment
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      # https://<forgeai-api address>/api/v1/auth/github/callback
+      - key: GITHUB_REDIRECT_URI
+        sync: false
+      # The address of forgeai-web, with no trailing slash
+      - key: FORGEAI_FRONTEND_URL
+        sync: false
+      # The address of forgeai-ai
+      - key: AI_SERVICE_BASE_URL
+        sync: false
+      # The shared secret, read from forgeai-ai so the two always agree
+      - key: AI_SERVICE_TOKEN
+        fromService:
+          type: web
+          name: forgeai-ai
+          envVarKey: AI_SERVICE_TOKEN
+      # Your own email. Anyone can sign up and look around; only these
+      # accounts can start runs, which spend model and sandbox quota.
+      - key: FORGEAI_ALLOWED_EMAILS
+        sync: false
+      - key: FORGEAI_DAILY_RUN_LIMIT
+        value: "10"
+
+  - type: web
+    name: forgeai-ai
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./services/ai-service/Dockerfile
+    dockerContext: ./services/ai-service
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - services/ai-service/**
+    envVars:
+      - key: AI_SERVICE_TOKEN
+        generateValue: true
+      # Gemini's free tier, through its OpenAI-compatible endpoint
+      - key: LLM_BASE_URL
+        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.8-flash
+      # Gemini 3 models cannot turn thinking off; keep it short instead.
+      - key: LLM_REASONING_EFFORT
+        value: low
+      # A free tier answers "too many requests" now and then; wait and retry.
+      - key: LLM_MAX_RETRIES
+        value: "3"
+      - key: LLM_TIMEOUT_SECONDS
+        value: "180"
+      - key: LLM_MAX_OUTPUT_TOKENS
+        value: "4000"
+      - key: GENERATION_MAX_OUTPUT_TOKENS
+        value: "8000"
+      - key: E2B_API_KEY
+        sync: false
+      - key: LANGFUSE_PUBLIC_KEY
+        sync: false
+      - key: LANGFUSE_SECRET_KEY
+        sync: false
+      - key: LANGFUSE_BASE_URL
+        sync: false

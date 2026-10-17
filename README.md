@@ -140,6 +140,28 @@ faster and clearly weaker. `infrastructure/ollama/Modelfile.fast` sets it up.
   destroyed; each run records sandbox seconds and an estimated credit cost.
   The whole stack runs on free tiers.
 
+## Deploy it for free
+
+[render.yaml](render.yaml) describes the whole deployment for Render's free
+plan: the web app as a static site, and the two services as free Docker
+instances. The database is Neon's free Postgres and the model is Gemini's free
+API tier, so nothing runs on your own machine and no step needs a payment
+method. [docs/deployment.md](docs/deployment.md) walks through it.
+
+What changes when it is deployed:
+
+- The web app and the API live at different addresses. The API allows
+  cross-origin calls from the web app's address and no other.
+- Free Render services cannot talk over a private network, so the AI service is
+  public. It answers only requests carrying a shared secret that the Blueprint
+  generates for both services.
+- Anyone can sign up, but only listed accounts can start runs, and each account
+  has a daily limit: every run spends real model and sandbox quota.
+- Free services sleep when idle. The web app wakes both services as soon as it
+  opens. Measured under the free plan's limits (512 MB, 0.1 CPU), the Java
+  service starts in about 56 s, down from 99 s, using a class data archive built
+  into the image, and runs in about 190 MB.
+
 ## Run it locally
 
 Prerequisites: JDK 21+, Python 3.13, Docker, and [Ollama](https://ollama.com).
@@ -199,12 +221,12 @@ All endpoints except register, login and the OAuth callback need
 
 | Suite | Tests | What it needs |
 |---|---|---|
-| `services/project-service` (`./mvnw verify`) | 114 | Docker, for a throwaway PostgreSQL |
-| `services/ai-service` (`pytest`) | 158 | Nothing: the model, E2B and Langfuse are faked |
-| `frontend` (`npm test`) | 36 | Nothing: logic and components in jsdom |
-| `frontend` (`npm run test:e2e`) | 37, each at desktop and phone size | Chromium; the API is mocked |
+| `services/project-service` (`./mvnw verify`) | 126 | Docker, for a throwaway PostgreSQL |
+| `services/ai-service` (`pytest`) | 161 | Nothing: the model, E2B and Langfuse are faked |
+| `frontend` (`npm test`) | 38 | Nothing: logic and components in jsdom |
+| `frontend` (`npm run test:e2e`) | 39, each at desktop and phone size | Chromium; the API is mocked |
 
-CI runs all three on every push without any secrets.
+CI runs all three on every push without any secrets, and also builds the two Docker images that the deployment uses.
 
 To measure the agent itself, the evaluation harness runs real tasks against a
 real repository. A task counts as solved only if the agent's own tests pass

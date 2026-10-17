@@ -4,8 +4,10 @@ import com.forgeai.project.dto.AgentRunResponse;
 import com.forgeai.project.dto.StartRunRequest;
 import com.forgeai.project.entity.AgentRun;
 import com.forgeai.project.mapper.AgentRunMapper;
+import com.forgeai.project.security.AuthenticatedUser;
 import com.forgeai.project.security.CurrentUser;
 import com.forgeai.project.service.AgentRunService;
+import com.forgeai.project.service.RunAllowance;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +22,16 @@ public class AgentRunController {
 
     private final AgentRunService agentRunService;
     private final AgentRunMapper agentRunMapper;
+    private final RunAllowance runAllowance;
 
     public AgentRunController(
             AgentRunService agentRunService,
-            AgentRunMapper agentRunMapper
+            AgentRunMapper agentRunMapper,
+            RunAllowance runAllowance
     ) {
         this.agentRunService = agentRunService;
         this.agentRunMapper = agentRunMapper;
+        this.runAllowance = runAllowance;
     }
 
     // 202 Accepted: the run has been recorded and will proceed in the
@@ -36,8 +41,11 @@ public class AgentRunController {
             @PathVariable Long projectId,
             @Valid @RequestBody StartRunRequest request
     ) {
+        AuthenticatedUser user = CurrentUser.get();
+        runAllowance.check(user.userId(), user.email());
+
         AgentRun run = agentRunService.start(
-                CurrentUser.get().userId(),
+                user.userId(),
                 projectId,
                 request.getTask()
         );
