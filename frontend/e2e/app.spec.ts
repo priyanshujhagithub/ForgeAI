@@ -389,6 +389,10 @@ test.describe('theme', () => {
   const paper = (page: Page) =>
     page.evaluate(() => getComputedStyle(document.body).backgroundColor)
 
+  // A theme change is applied inside a view transition, one frame after the
+  // click, once the browser has captured the old screen. So these checks wait
+  // for the change instead of looking straight after the click.
+
   test('the toggle switches theme and the choice survives a reload', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await signIn(page)
@@ -397,10 +401,11 @@ test.describe('theme', () => {
     const light = await paper(page)
 
     await page.getByRole('button', { name: 'Switch to dark theme' }).click()
-    expect(await theme(page)).toBe('dark')
+    await expect.poll(() => theme(page)).toBe('dark')
     await expect(page.getByRole('button', { name: 'Switch to light theme' })).toBeVisible()
-    expect(await paper(page)).not.toBe(light)
+    await expect.poll(() => paper(page)).not.toBe(light)
 
+    // Applied before the first paint by the script in index.html.
     await page.reload()
     expect(await theme(page)).toBe('dark')
     expect(await paper(page)).not.toBe(light)
@@ -417,13 +422,13 @@ test.describe('theme', () => {
     const appearance = page.getByRole('radiogroup', { name: 'Appearance' })
     await appearance.getByText('Light').click()
     await expect(appearance.getByRole('radio', { name: 'Light' })).toBeChecked()
-    expect(await theme(page)).toBe('light')
-    expect(await paper(page)).not.toBe(dark)
+    await expect.poll(() => theme(page)).toBe('light')
+    await expect.poll(() => paper(page)).not.toBe(dark)
 
     await appearance.getByText('System').click()
     await expect(appearance.getByRole('radio', { name: 'System' })).toBeChecked()
-    expect(await theme(page)).toBeUndefined()
-    expect(await paper(page)).toBe(dark)
+    await expect.poll(() => theme(page)).toBeUndefined()
+    await expect.poll(() => paper(page)).toBe(dark)
   })
 })
 
