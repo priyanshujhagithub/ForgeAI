@@ -1,0 +1,96 @@
+{
+  "model": "gemini-3.5-flash",
+  "repository": "priyanshujhagithub/demo",
+  "baseSha": "0d0c23adcea4468b3e35e091147c75660c3340a7",
+  "startedAt": "20261020T102412Z",
+  "outcomes": [
+    {
+      "task_id": "email-validation",
+      "loop_outcome": "passed",
+      "attempts": 2,
+      "accepted": true,
+      "seconds": 82.4,
+      "sandbox_seconds": 49.9,
+      "estimated_cost_usd": 0.0015,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "password-length",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 47.6,
+      "sandbox_seconds": 32.1,
+      "estimated_cost_usd": 0.00096,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "duplicate-email",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 163.0,
+      "sandbox_seconds": 36.8,
+      "estimated_cost_usd": 0.0011,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "get-user",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 57.2,
+      "sandbox_seconds": 40.9,
+      "estimated_cost_usd": 0.00123,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "delete-user",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 51.3,
+      "sandbox_seconds": 33.2,
+      "estimated_cost_usd": 0.00099,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "health-endpoint",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 47.5,
+      "sandbox_seconds": 32.8,
+      "estimated_cost_usd": 0.00098,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "user-count",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 41.4,
+      "sandbox_seconds": 25.8,
+      "estimated_cost_usd": 0.00077,
+      "message": null,
+      "solved": true
+    },
+    {
+      "task_id": "normalise-email",
+      "loop_outcome": "passed",
+      "attempts": 1,
+      "accepted": true,
+      "seconds": 36.6,
+      "sandbox_seconds": 27.9,
+      "estimated_cost_usd": 0.00084,
+      "message": null,
+      "solved": true
+    }
+  ]
+}

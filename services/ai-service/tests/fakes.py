@@ -23,6 +23,10 @@ class FakeChatClient:
         self.requests: list[dict] = []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
+    def with_options(self, **_options):
+        # The real client returns a copy with other settings (such as retries).
+        return self
+
     def _create(self, **kwargs):
         # Copy the messages: the caller keeps appending to the same list.
         self.requests.append({**kwargs, "messages": list(kwargs["messages"])})

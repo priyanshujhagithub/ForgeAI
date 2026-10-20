@@ -36,6 +36,10 @@ Free terms change. Check each provider's pricing page before relying on them.
   Render's private network, so the API reaches the AI service at its public
   address. The AI service answers only requests carrying the shared secret
   `AI_SERVICE_TOKEN`, which the Blueprint generates and gives to both services.
+- **Busy models are skipped.** Gemini's free tier often turns a popular model
+  away with "experiencing high demand" (HTTP 503) or "too many requests" (429).
+  `LLM_FALLBACK_MODELS` lists the models to try next, in order; the first that
+  answers is used, and the trace records which one it was.
 - **Your code goes to Google.** On Gemini's free tier, Google may use what you
   send to improve its products. Use it with repositories you would be happy to
   make public.

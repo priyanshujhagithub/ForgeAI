@@ -103,8 +103,15 @@ services:
         value: https://generativelanguage.googleapis.com/v1beta/openai/
       - key: LLM_API_KEY
         sync: false
+      # Chosen by free daily allowance as much as by quality: one run makes
+      # 6-15 model calls, and on the free tier the newest models allow only 20
+      # requests a day, while the Flash Lite models allow 500 (checked in
+      # AI Studio, October 2026). The fallbacks take over when a model is busy
+      # or out of quota.
       - key: LLM_MODEL
-        value: gemini-3.8-flash
+        value: gemini-3.5-flash
+      - key: LLM_FALLBACK_MODELS
+        value: gemini-3.5-flash-lite,gemini-3.1-flash-lite
       # Gemini 3 models cannot turn thinking off; keep it short instead.
       - key: LLM_REASONING_EFFORT
         value: low

@@ -33,7 +33,7 @@ How a run moves through the system, and why it is built this way, is in
 |---|---|
 | Sign-up, login (JWT), project ownership | Working, tested |
 | GitHub OAuth, reading a repository at a fixed commit | Working, tested |
-| Repository analysis, task planning, code generation | Working against a real local model |
+| Repository analysis, task planning, code generation | Working against a local model (Ollama) and Gemini's free API |
 | Running tests in an E2B sandbox | Working against real E2B |
 | Diagnose-and-fix loop (up to 3 attempts) | Working; see results below for how often it succeeds |
 | Langfuse tracing | Working against Langfuse Cloud |
@@ -44,8 +44,45 @@ How a run moves through the system, and why it is built this way, is in
 
 ## Results
 
-Everything below was measured on one laptop (Intel i5-11400H, 16 GB RAM,
-GTX 1650 with 4 GB VRAM) running `qwen3:8b` through Ollama, which on this
+The same eight tasks were run against the [demo repository](demo/registration-service),
+from the same starting commit, with two models. A task is solved only if the
+agent's own tests pass **and** a hidden acceptance test, which the agent never
+sees, also passes.
+
+| Model | Solved | Mean attempts | All eight tasks | Sandbox credit |
+|---|---|---|---|---|
+| Gemini 3.5 Flash, free API tier | **8 of 8** | 1.1 | 8.8 min | about $0.008 |
+| `qwen3:8b` on a laptop GPU, through Ollama | 3 of 8 | | 45 min | about $0.007 |
+
+Each row is a single sweep of eight small tasks on a small repository, so read
+it as a comparison between the two models, not as a general success rate. With
+every task now solved, this benchmark has stopped telling configurations apart;
+harder tasks are the next thing it needs.
+
+### Evaluation with Gemini: 8 of 8 tasks solved
+
+Measured on 20 October 2026 with `LLM_MODEL=gemini-3.5-flash` and the two Flash
+Lite models as fallbacks for when it is busy (see
+[Choosing a model](#choosing-a-model)).
+
+| Task | Agent's own tests | Attempts | Hidden test | Solved | Time |
+|---|---|---|---|---|---|
+| Reject invalid emails | passed | 2 | passed | yes | 82 s |
+| Reject short passwords | passed | 1 | passed | yes | 48 s |
+| Reject duplicate emails | passed | 1 | passed | yes | 163 s |
+| Add `GET /users/{id}` | passed | 1 | passed | yes | 57 s |
+| Add `DELETE /users/{id}` | passed | 1 | passed | yes | 51 s |
+| Add `GET /health` | passed | 1 | passed | yes | 48 s |
+| Add `GET /users/count` | passed | 1 | passed | yes | 41 s |
+| Normalise stored emails | passed | 1 | passed | yes | 37 s |
+
+"Reject invalid emails" failed its first test run and passed after one round
+of diagnose and fix. All eight took 8.8 minutes and 279 seconds of sandbox time.
+
+### Evaluation with a local model: 3 of 8 tasks solved
+
+Everything in this section was measured on one laptop (Intel i5-11400H, 16 GB
+RAM, GTX 1650 with 4 GB VRAM) running `qwen3:8b` through Ollama, which on this
 hardware produces about 4 to 5 tokens per second.
 
 | Step | Typical time |
@@ -57,12 +94,6 @@ hardware produces about 4 to 5 tokens per second.
 | Sandbox setup (clone and install) | about 12 s |
 | One test run in the sandbox | about 1 s |
 | E2B credit per run (estimated) | $0.001 to $0.002 |
-
-### Evaluation: 3 of 8 tasks solved
-
-Eight tasks were run against the [demo repository](demo/registration-service)
-with the evaluation harness. A task is solved only if the agent's own tests
-pass and a hidden acceptance test, which the agent never sees, also passes.
 
 | Task | Agent's own tests | Attempts | Hidden test | Solved | Time |
 |---|---|---|---|---|---|
@@ -100,10 +131,20 @@ wrong behaviour. That is why the last step is a human review, not a merge.
 
 The model is the limiting factor here, and it is swappable: any
 OpenAI-compatible endpoint can be used by changing three environment variables.
+The same tasks on Gemini's free tier, above, were all solved.
 
-### Choosing a local model
+### Choosing a model
 
-The default model does not fit in 4 GB of VRAM, so most of it runs on the CPU.
+**Hosted, free.** Gemini's free tier sets a separate daily limit for each
+model, shown in Google AI Studio. In October 2026 the newest Flash models
+allowed only 20 requests a day, while the Flash Lite models allowed 500. One
+run makes roughly 6 to 15 model calls, so the default order is chosen by
+allowance as much as by quality: `gemini-3.5-flash`, then `gemini-3.5-flash-lite`
+and `gemini-3.1-flash-lite` in `LLM_FALLBACK_MODELS`. When a model answers
+"too many requests" (429), is overloaded (5xx) or drops the connection, the
+next one is asked at once, without waiting out retries.
+
+**Local.** The default local model, `qwen3:8b`, does not fit in 4 GB of VRAM, so most of it runs on the CPU.
 A smaller model that fits entirely on the GPU was measured on the same eight
 tasks, from the same starting commit:
 

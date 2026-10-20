@@ -1,5 +1,8 @@
 import json
 
+import httpx
+import openai
+
 from app.correction_loop import CorrectionLoop
 from app.generator import CodeGenerator
 from app.planner import TaskPlanner
@@ -121,3 +124,14 @@ def test_project_type_is_detected_from_the_manifest():
     assert detect_project_type(["README.md", "svc/requirements.txt"]) == "PYTHON"
     assert detect_project_type(["pom.xml", "package.json"]) == "MAVEN"
     assert detect_project_type(["README.md"]) == "UNKNOWN"
+
+
+def test_an_unreachable_model_is_recorded_and_the_sweep_goes_on():
+    dropped = openai.APIConnectionError(request=httpx.Request("POST", "http://provider"))
+
+    outcome, _ = evaluate([dropped], [])
+
+    assert outcome.loop_outcome == "model_unavailable"
+    assert "Cannot reach" in outcome.message
+    assert outcome.solved is False
+

@@ -23,7 +23,7 @@ from pathlib import Path
 from app.config import Settings
 from app.correction_loop import CorrectionLoop
 from app.generator import CodeGenerator
-from app.llm import LLMClient, LLMOutputError
+from app.llm import LLMClient, LLMOutputError, LLMUnavailableError
 from app.planner import TaskPlanner
 from app.sandbox import (
     E2BSandboxRunner,
@@ -70,10 +70,14 @@ def run_task(
     try:
         plan = planner.plan(context, task["task"])
         result = loop.run(context, task["task"], plan, repository)
-    except LLMOutputError as exc:
+    except (LLMOutputError, LLMUnavailableError) as exc:
+        # Recorded as this task's result: one bad answer, or one spell of an
+        # unreachable provider, must not end the whole sweep.
         return TaskOutcome(
             task_id=task["id"],
-            loop_outcome="no_valid_output",
+            loop_outcome=(
+                "no_valid_output" if isinstance(exc, LLMOutputError) else "model_unavailable"
+            ),
             attempts=0,
             accepted=None,
             seconds=round(time.monotonic() - started, 1),

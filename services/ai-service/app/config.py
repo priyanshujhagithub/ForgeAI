@@ -19,6 +19,10 @@ class Settings:
     llm_base_url: str = "http://localhost:11434/v1/"
     llm_api_key: str = "ollama"
     llm_model: str = "forgeai-qwen3"
+    # Tried in order when the model above is busy or out of quota (HTTP 429 or
+    # 5xx). Free tiers often turn a popular model away for a while; a smaller
+    # model that answers beats a run that fails.
+    llm_fallback_models: tuple[str, ...] = ()
     # "none" turns off Qwen3 thinking, which otherwise dominates latency.
     # Set to an empty string for providers that reject the parameter.
     llm_reasoning_effort: str = "none"
@@ -78,6 +82,11 @@ class Settings:
             llm_base_url=os.getenv("LLM_BASE_URL", defaults.llm_base_url),
             llm_api_key=os.getenv("LLM_API_KEY", defaults.llm_api_key),
             llm_model=os.getenv("LLM_MODEL", defaults.llm_model),
+            llm_fallback_models=tuple(
+                model.strip()
+                for model in os.getenv("LLM_FALLBACK_MODELS", "").split(",")
+                if model.strip()
+            ),
             llm_reasoning_effort=os.getenv(
                 "LLM_REASONING_EFFORT", defaults.llm_reasoning_effort
             ),

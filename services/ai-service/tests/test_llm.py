@@ -3,6 +3,7 @@ import openai
 import pytest
 from pydantic import BaseModel
 
+from app.config import Settings
 from app.llm import LLMOutputError, LLMUnavailableError
 from tests.fakes import make_llm
 
@@ -126,4 +127,86 @@ def test_hard_check_still_raises_even_when_a_soft_check_is_present():
             check=lambda a: ["value must be positive"] if a.value < 0 else [],
             soft_check=lambda a: [],
         )
+
+
+def status_error(code: int) -> openai.APIStatusError:
+    request = httpx.Request("POST", "http://provider")
+    return openai.APIStatusError(
+        f"HTTP {code}", response=httpx.Response(code, request=request), body=None
+    )
+
+
+@pytest.mark.parametrize("code", [429, 503])
+def test_a_busy_model_hands_over_to_the_next_one(code):
+    llm, client = make_llm(
+        [status_error(code), {"value": 7}],
+        llm_model="big-model",
+        llm_fallback_models=("small-model",),
+    )
+
+    result = complete(llm)
+
+    assert result == Answer(value=7)
+    assert [request["model"] for request in client.requests] == ["big-model", "small-model"]
+
+
+def test_a_refused_request_is_not_retried_on_another_model():
+    llm, client = make_llm(
+        [status_error(400)], llm_model="big-model", llm_fallback_models=("small-model",)
+    )
+
+    with pytest.raises(LLMUnavailableError, match="HTTP 400 for big-model"):
+        complete(llm)
+    assert len(client.requests) == 1
+
+
+def test_when_every_model_is_busy_the_last_answer_is_reported():
+    llm, _ = make_llm(
+        [status_error(503), status_error(503)],
+        llm_model="big-model",
+        llm_fallback_models=("small-model",),
+    )
+
+    with pytest.raises(LLMUnavailableError, match="HTTP 503 for small-model"):
+        complete(llm)
+
+
+def test_a_timeout_says_so_instead_of_claiming_the_provider_is_unreachable():
+    error = openai.APITimeoutError(request=httpx.Request("POST", "http://provider"))
+    llm, _ = make_llm([error], llm_timeout_seconds=180)
+
+    with pytest.raises(LLMUnavailableError, match="did not answer within 180 s"):
+        complete(llm)
+
+
+def test_fallback_models_are_read_as_a_comma_separated_list(monkeypatch):
+    monkeypatch.setenv("LLM_FALLBACK_MODELS", " small-model, tiny-model ,")
+
+    assert Settings.from_env().llm_fallback_models == ("small-model", "tiny-model")
+
+
+def dropped_connection() -> openai.APIConnectionError:
+    return openai.APIConnectionError(request=httpx.Request("POST", "http://provider"))
+
+
+def test_a_dropped_connection_also_hands_over_to_the_next_model():
+    llm, client = make_llm(
+        [dropped_connection(), {"value": 7}],
+        llm_model="big-model",
+        llm_fallback_models=("small-model",),
+    )
+
+    assert complete(llm) == Answer(value=7)
+    assert [request["model"] for request in client.requests] == ["big-model", "small-model"]
+
+
+def test_a_provider_that_drops_every_model_is_reported_as_unreachable():
+    llm, _ = make_llm(
+        [dropped_connection(), dropped_connection()],
+        llm_model="big-model",
+        llm_fallback_models=("small-model",),
+    )
+
+    with pytest.raises(LLMUnavailableError, match="Cannot reach"):
+        complete(llm)
 

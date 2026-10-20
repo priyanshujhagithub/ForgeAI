@@ -58,14 +58,14 @@ const SAFEGUARDS = [
 
 const RESULTS = [
   {
-    figure: '3 of 8',
+    figure: '8 of 8',
     label: 'benchmark tasks solved',
-    note: 'by an 8-billion-parameter model on a laptop GPU. A task counts only if a hidden acceptance test passes too.',
+    note: 'by Gemini 3.5 Flash on its free tier. A task counts only if a hidden acceptance test, which the agent never sees, passes too.',
   },
   {
-    figure: '2.5 min',
-    label: 'for a single-file task',
-    note: 'from task to tested change on that same laptop. Multi-file tasks with retries take longer.',
+    figure: '66 s',
+    label: 'per task, on average',
+    note: 'from task to tested change, sandbox included. The same tasks on a local 8B model took six minutes each.',
   },
   {
     figure: '$0.001',
@@ -201,8 +201,8 @@ export function Landing() {
               <p className="eyebrow">Results</p>
               <h2 className={styles.title}>Measured, not promised.</h2>
               <p className={styles.sectionLede}>
-                These numbers come from running the agent on a fixed set of tasks with a small
-                local model. They are modest on purpose: this is what it does, not what it might.
+                These numbers come from running the agent on a fixed set of eight small tasks
+                against a demo repository. They are what it did, not what it might do.
               </p>
             </div>
             <dl className={styles.results}>
@@ -220,8 +220,9 @@ export function Landing() {
               ))}
             </dl>
             <p className={styles.resultsFoot} data-reveal>
-              The model is the limit, and it is swappable. When the agent’s tests fail, nothing is
-              proposed, so a miss costs a few minutes, not a broken branch.
+              The model is the limit, and it is swappable: the same tasks on a local
+              8-billion-parameter model solved three of eight. When the agent’s tests fail,
+              nothing is proposed, so a miss costs a few minutes, not a broken branch.
             </p>
           </div>
         </section>

@@ -19,6 +19,10 @@ from .tracing import Tracer
 T = TypeVar("T", bound=BaseModel)
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+# Answers that mean "not this model, not now": too many requests, or the
+# provider is overloaded or failing. Worth trying the next model for.
+_TRY_NEXT_MODEL = {429, 500, 502, 503, 504}
 _CODE_FENCE = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
 
 
@@ -103,8 +107,8 @@ class LLMClient:
         with self.tracer.generation(
             name, model=self.settings.llm_model, input=messages
         ) as generation:
-            content, usage = self._call_provider(messages, schema, name, max_tokens)
-            generation.update(output=content, usage=usage)
+            content, usage, model = self._call_provider(messages, schema, name, max_tokens)
+            generation.update(output=content, usage=usage, metadata={"answeredBy": model})
             return content
 
     def _call_provider(
@@ -113,14 +117,44 @@ class LLMClient:
         schema: type[BaseModel],
         name: str,
         max_tokens: int | None,
-    ) -> tuple[str, dict[str, int] | None]:
+    ) -> tuple[str, dict[str, int] | None, str]:
+        """Ask each configured model in turn until one answers.
+
+        Only the last model gets the SDK's retries. An earlier one that is busy
+        is skipped at once: waiting out its back-off would only delay the model
+        that can answer now.
+        """
+        models = (self.settings.llm_model, *self.settings.llm_fallback_models)
+        for index, model in enumerate(models):
+            last = index == len(models) - 1
+            client = self.client if last else self.client.with_options(max_retries=0)
+            try:
+                response = self._create(client, model, messages, schema, name, max_tokens)
+            except openai.APIStatusError as exc:
+                if not last and exc.status_code in _TRY_NEXT_MODEL:
+                    continue
+                raise LLMUnavailableError(
+                    f"Model provider returned HTTP {exc.status_code} for {model}: {exc.message}"
+                ) from exc
+            except LLMUnavailableError:
+                # A dropped or timed-out connection. Gemini's free tier turns an
+                # overloaded model away like this as well as with a 503, so the
+                # next model gets its chance. If the provider is down for every
+                # model, the last one reports it.
+                if not last:
+                    continue
+                raise
+            return (*self._read(response, name), model)
+        raise AssertionError("unreachable: the last model either answers or raises")
+
+    def _create(self, client, model, messages, schema, name, max_tokens):
         extra_body = {}
         if self.settings.llm_reasoning_effort:
             extra_body["reasoning_effort"] = self.settings.llm_reasoning_effort
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.settings.llm_model,
+            return client.chat.completions.create(
+                model=model,
                 messages=messages,
                 max_tokens=max_tokens or self.settings.llm_max_output_tokens,
                 response_format={
@@ -133,15 +167,19 @@ class LLMClient:
                 },
                 extra_body=extra_body or None,
             )
+        # A timeout is a kind of connection error, so it is caught first.
+        except openai.APITimeoutError as exc:
+            raise LLMUnavailableError(
+                f"The model provider did not answer within "
+                f"{self.settings.llm_timeout_seconds:.0f} s"
+            ) from exc
         except openai.APIConnectionError as exc:
             raise LLMUnavailableError(
                 f"Cannot reach the model provider at {self.settings.llm_base_url}"
             ) from exc
-        except openai.APIStatusError as exc:
-            raise LLMUnavailableError(
-                f"Model provider returned HTTP {exc.status_code}: {exc.message}"
-            ) from exc
 
+    @staticmethod
+    def _read(response, name: str) -> tuple[str, dict[str, int] | None]:
         choice = response.choices[0]
         if choice.finish_reason == "length":
             # A truncated reply cannot be repaired by asking again with more text.
