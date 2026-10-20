@@ -15,17 +15,11 @@ services:
   # still starts only the database for local development:
   #
   #   docker compose --profile app up --build
-  #
-  # Ollama keeps running on the host, where it can use the GPU.
 
   ai-service:
     profiles: ["app"]
     build: ./services/ai-service
     env_file: .env
-    environment:
-      LLM_BASE_URL: http://host.docker.internal:11434/v1/
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     ports:
       - "8001:8001"
 

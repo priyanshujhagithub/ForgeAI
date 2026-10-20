@@ -18,8 +18,6 @@ from .tracing import Tracer
 
 T = TypeVar("T", bound=BaseModel)
 
-_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
-
 # Answers that mean "not this model, not now": too many requests, or the
 # provider is overloaded or failing. Worth trying the next model for.
 _TRY_NEXT_MODEL = {429, 500, 502, 503, 504}
@@ -124,6 +122,10 @@ class LLMClient:
         is skipped at once: waiting out its back-off would only delay the model
         that can answer now.
         """
+        if not self.settings.llm_api_key:
+            raise LLMUnavailableError(
+                "LLM_API_KEY is not set. Create a free key in Google AI Studio."
+            )
         models = (self.settings.llm_model, *self.settings.llm_fallback_models)
         for index, model in enumerate(models):
             last = index == len(models) - 1
@@ -238,7 +240,7 @@ def _usage(response) -> dict[str, int] | None:
 
 
 def _clean(content: str) -> str:
-    text = _THINK_BLOCK.sub("", content).strip()
+    text = content.strip()
     fenced = _CODE_FENCE.match(text)
     return fenced.group(1) if fenced else text
 

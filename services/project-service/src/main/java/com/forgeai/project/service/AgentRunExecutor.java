@@ -2,7 +2,7 @@ package com.forgeai.project.service;
 
 // Runs one agent run in the background, from repository to pull request.
 //
-// A run takes minutes (longer on a local model), so it cannot live inside an
+// A run takes a minute or more, so it cannot live inside an
 // HTTP request. Each step is saved to the agent_runs row as it completes; the
 // row is what clients poll and what survives if this process dies mid-run.
 

@@ -356,7 +356,7 @@ test.describe('motion', () => {
     const example = page.getByRole('figure')
     await expect(example.getByText('Running', { exact: true })).toBeVisible()
     await expect(example.getByText('Pull request open')).toBeVisible({ timeout: 12_000 })
-    await expect(example.getByText('4 min 05 s')).toBeVisible()
+    await expect(example.getByText('2 min 27 s')).toBeVisible()
 
     await example.getByRole('button', { name: /Replay/ }).click()
     await expect(example.getByText('Running', { exact: true })).toBeVisible()

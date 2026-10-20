@@ -1,8 +1,8 @@
 """Bounded self-correction: generate, test in a sandbox, diagnose, fix, repeat.
 
 Each attempt gets its own short-lived sandbox. Setting one up takes seconds,
-while a local model needs minutes between attempts, so keeping a sandbox open
-across attempts would mostly bill idle time.
+and the model's diagnosis and fix take longer than that between attempts, so
+keeping a sandbox open across attempts would mostly bill idle time.
 """
 
 from .generator import CodeGenerator, FileTooLargeError

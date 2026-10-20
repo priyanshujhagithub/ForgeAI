@@ -24,11 +24,11 @@ def test_returns_validated_model_and_sends_json_schema():
     assert complete(llm) == Answer(value=7)
 
     request = client.requests[0]
-    assert request["model"] == "forgeai-qwen3"
+    assert request["model"] == "gemini-3.5-flash"
     assert request["messages"][0] == {"role": "system", "content": "sys"}
     assert request["response_format"]["type"] == "json_schema"
     assert request["response_format"]["json_schema"]["schema"] == Answer.model_json_schema()
-    assert request["extra_body"] == {"reasoning_effort": "none"}
+    assert request["extra_body"] == {"reasoning_effort": "low"}
 
 
 def test_omits_reasoning_effort_when_disabled():
@@ -39,9 +39,9 @@ def test_omits_reasoning_effort_when_disabled():
     assert client.requests[0]["extra_body"] is None
 
 
-def test_strips_think_block_and_code_fence():
+def test_strips_a_code_fence_around_the_json():
     fence = "`" * 3
-    reply = f'<think>hmm</think>\n{fence}json\n{{"value": 3}}\n{fence}'
+    reply = f'{fence}json\n{{"value": 3}}\n{fence}'
     llm, _ = make_llm([reply])
 
     assert complete(llm).value == 3
@@ -234,4 +234,22 @@ def test_a_used_up_quota_is_described_in_one_sentence():
         "Model provider returned HTTP 429 for gemini-3.8-flash: its quota is used up"
         " (limit: 20 requests); it can be used again in 15h17m5s."
     )
+
+
+def test_a_missing_key_is_reported_before_any_call():
+    llm, client = make_llm([{"value": 1}], llm_api_key="")
+
+    with pytest.raises(LLMUnavailableError, match="LLM_API_KEY is not set"):
+        complete(llm)
+    assert client.requests == []
+
+
+def test_gemini_with_flash_lite_fallbacks_is_the_default(monkeypatch):
+    monkeypatch.delenv("LLM_FALLBACK_MODELS", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)
+
+    settings = Settings.from_env()
+
+    assert settings.llm_model == "gemini-3.5-flash"
+    assert settings.llm_fallback_models == ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")
 

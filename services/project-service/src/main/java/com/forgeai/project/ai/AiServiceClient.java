@@ -65,8 +65,8 @@ public class AiServiceClient {
             builder.defaultHeader(SERVICE_TOKEN_HEADER, token);
         }
 
-        // A local model can take minutes per call, so the read timeouts are long
-        // and explicit rather than the JDK default of "wait forever".
+        // A solve call makes many model calls and sandbox runs, so the read
+        // timeouts are long, and explicit rather than the JDK default of "wait forever".
         this.restClient = builder
                 .requestFactory(requestFactory(connectTimeout, readTimeout))
                 .build();

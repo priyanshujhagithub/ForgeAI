@@ -47,7 +47,11 @@ def make_llm(
     **settings_overrides,
 ) -> tuple[LLMClient, FakeChatClient]:
     client = FakeChatClient(replies, finish_reason)
-    return LLMClient(client=client, settings=Settings(**settings_overrides)), client
+    # One model and a key, unless a test says otherwise, so scripted replies
+    # are consumed by exactly the calls the test expects.
+    defaults = {"llm_api_key": "test-key", "llm_fallback_models": ()}
+    settings = Settings(**{**defaults, **settings_overrides})
+    return LLMClient(client=client, settings=settings), client
 
 
 def make_context(files: dict[str, str] | None = None) -> RepositorySnapshotContext:

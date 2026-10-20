@@ -117,14 +117,14 @@ def test_every_model_call_is_one_generation_with_model_and_usage():
 
     client = FakeLangfuse()
     chat = FakeChatClient([{"value": 1}])
-    llm = LLMClient(client=chat, settings=Settings(), tracer=Tracer(client))
+    llm = LLMClient(client=chat, settings=Settings(llm_api_key="test-key"), tracer=Tracer(client))
 
     llm.complete_structured(system="s", user="u", schema=Answer, name="answer")
 
     (record,) = client.observations
     assert record["as_type"] == "generation"
     assert record["name"] == "answer"
-    assert record["model"] == "forgeai-qwen3"
+    assert record["model"] == "gemini-3.5-flash"
     assert record["input"][1] == {"role": "user", "content": "u"}
     assert record["updates"][0]["output"] == '{"value": 1}'
     assert record["closed"] is True

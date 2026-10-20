@@ -65,7 +65,7 @@ const RESULTS = [
   {
     figure: '66 s',
     label: 'per task, on average',
-    note: 'from task to tested change, sandbox included. The same tasks on a local 8B model took six minutes each.',
+    note: 'from task to tested change, sandbox included, across the eight benchmark tasks.',
   },
   {
     figure: '$0.001',
@@ -143,7 +143,7 @@ export function Landing() {
                 </a>
               </div>
               <p className={`${styles.footnote} enter`} style={nth(4)}>
-                Works with a local model through Ollama, or any OpenAI-compatible API.
+                Runs on Google Gemini's free tier. Nothing to install to try it.
               </p>
             </div>
 
@@ -220,9 +220,8 @@ export function Landing() {
               ))}
             </dl>
             <p className={styles.resultsFoot} data-reveal>
-              The model is the limit, and it is swappable: the same tasks on a local
-              8-billion-parameter model solved three of eight. When the agent’s tests fail,
-              nothing is proposed, so a miss costs a few minutes, not a broken branch.
+              The model can still be wrong, which is why the tests decide. When the agent’s tests
+              fail, nothing is proposed, so a miss costs a few minutes, not a broken branch.
             </p>
           </div>
         </section>

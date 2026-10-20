@@ -15,27 +15,30 @@ for _directory in Path(__file__).resolve().parents:
 
 @dataclass(frozen=True)
 class Settings:
-    # Any OpenAI-compatible endpoint works; the default is local Ollama.
-    llm_base_url: str = "http://localhost:11434/v1/"
-    llm_api_key: str = "ollama"
-    llm_model: str = "forgeai-qwen3"
+    # Google Gemini through its OpenAI-compatible endpoint. The key comes from
+    # Google AI Studio (free tier, no billing needed) and must be set in LLM_API_KEY.
+    llm_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    llm_api_key: str = ""
+    # Chosen by free daily allowance as much as by quality: one run makes 6 to
+    # 15 model calls, and the free tier allows the newest Flash models only 20
+    # requests a day but the Flash Lite models 500 (AI Studio, October 2026).
+    llm_model: str = "gemini-3.5-flash"
     # Tried in order when the model above is busy or out of quota (HTTP 429 or
-    # 5xx). Free tiers often turn a popular model away for a while; a smaller
-    # model that answers beats a run that fails.
-    llm_fallback_models: tuple[str, ...] = ()
-    # "none" turns off Qwen3 thinking, which otherwise dominates latency.
-    # Set to an empty string for providers that reject the parameter.
-    llm_reasoning_effort: str = "none"
-    llm_timeout_seconds: float = 600.0
-    # Hosted providers on free tiers answer "429 too many requests" often; with
-    # retries the SDK waits as long as the provider asks and tries again. Off by
-    # default: for a local model a retry would only repeat a 10-minute timeout.
-    llm_max_retries: int = 0
-    llm_max_output_tokens: int = 1500
+    # 5xx, or a dropped connection). A smaller model that answers beats a run
+    # that fails.
+    llm_fallback_models: tuple[str, ...] = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")
+    # Gemini 3 models cannot turn thinking off; "low" keeps it short. Set to an
+    # empty string for a provider that rejects the parameter.
+    llm_reasoning_effort: str = "low"
+    llm_timeout_seconds: float = 180.0
+    # Retries for the last model in the list only (see llm.py); a busy earlier
+    # model is skipped at once instead.
+    llm_max_retries: int = 3
+    llm_max_output_tokens: int = 4_000
     llm_max_repairs: int = 1
 
-    # Prompt budget. The model's context is 8192 tokens (see the Modelfile),
-    # so repository evidence is capped well below that to leave room for output.
+    # Prompt budget. Gemini's context is far larger, but small prompts answer
+    # faster and stay well inside the free tier's tokens-per-minute limit.
     evidence_budget_chars: int = 16_000
     max_file_chars: int = 6_000
 
@@ -43,7 +46,7 @@ class Settings:
     # prompt and in the output. Larger files are refused rather than truncated.
     generation_max_file_chars: int = 8_000
     generation_evidence_budget_chars: int = 6_000
-    generation_max_output_tokens: int = 3_000
+    generation_max_output_tokens: int = 8_000
 
     # E2B sandbox. Blank key means sandbox runs report "unavailable".
     e2b_api_key: str = ""
@@ -82,10 +85,14 @@ class Settings:
             llm_base_url=os.getenv("LLM_BASE_URL", defaults.llm_base_url),
             llm_api_key=os.getenv("LLM_API_KEY", defaults.llm_api_key),
             llm_model=os.getenv("LLM_MODEL", defaults.llm_model),
-            llm_fallback_models=tuple(
-                model.strip()
-                for model in os.getenv("LLM_FALLBACK_MODELS", "").split(",")
-                if model.strip()
+            llm_fallback_models=(
+                tuple(
+                    model.strip()
+                    for model in os.environ["LLM_FALLBACK_MODELS"].split(",")
+                    if model.strip()
+                )
+                if "LLM_FALLBACK_MODELS" in os.environ
+                else defaults.llm_fallback_models
             ),
             llm_reasoning_effort=os.getenv(
                 "LLM_REASONING_EFFORT", defaults.llm_reasoning_effort

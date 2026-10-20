@@ -98,7 +98,7 @@ def test_summary_reports_solved_count_and_cost():
         TaskOutcome("c", "tests_failed", 3, None, 900.0, 45.0, 0.0014),
     ]
 
-    summary = summarise(outcomes, "forgeai-qwen3")
+    summary = summarise(outcomes, "gemini-3.5-flash")
 
     assert "Solved (loop passed and hidden test passed): 1/3" in summary
     assert "Loop reported passing: 2/3" in summary

@@ -5,18 +5,18 @@ import { Icon } from './Icon'
 import { Pill } from './StatusPill'
 import styles from './ExampleRun.module.css'
 
-// The first run ForgeAI completed on this project's demo repository. The
-// totals are the measured ones; the replay compresses four minutes into a few
-// seconds, and `share` only sets the rhythm of that replay.
-const TOTAL_SECONDS = 245
-const SANDBOX = '15.6 s'
+// A run on the live deployment, on Gemini, against this project's demo
+// repository. The totals are the measured ones; the replay compresses them
+// into a few seconds, and `share` only sets the rhythm of that replay.
+const TOTAL_SECONDS = 147
+const SANDBOX = '13 s'
 
 const STEPS = [
   { doing: 'Reading the repository', done: 'Read the repository at one commit', share: 0.2 },
   { doing: 'Planning the change', done: 'Planned the change', share: 0.2 },
   { doing: 'Writing the code', done: 'Wrote the code', share: 0.3 },
   { doing: 'Running your tests in a sandbox', done: 'Tests passed in the sandbox', share: 0.2 },
-  { doing: 'Opening the pull request', done: 'Opened pull request #1', share: 0.1 },
+  { doing: 'Opening the pull request', done: 'Opened pull request #2', share: 0.1 },
 ]
 
 // The point in the replay, from 0 to 1, at which each step finishes.
@@ -75,7 +75,7 @@ export function ExampleRun({ autoplay = false }: ExampleRunProps) {
       </div>
 
       <p className={styles.task}>
-        Add GET /health that returns HTTP 200 with the JSON body {'{"status": "ok"}'}.
+        Reject registration with HTTP 422 when the password is shorter than 8 characters.
       </p>
 
       <ol className={styles.steps}>

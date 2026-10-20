@@ -10,7 +10,7 @@ which decision, and why the system is shaped the way it is.
 | **project-service** (Java, Spring Boot) | Users, JWT auth, project ownership, GitHub OAuth and API calls, the agent-run record, opening the pull request | Any model call or prompt |
 | **ai-service** (Python, FastAPI) | Prompts, model calls, output validation, the sandbox, the self-correction loop, tracing | Authentication, GitHub writes, persistence |
 | **PostgreSQL** | Users, projects, GitHub connections, agent runs | |
-| **Ollama** (or any OpenAI-compatible endpoint) | Inference | |
+| **Google Gemini** (free API tier) | Inference, with fallback to smaller models when one is busy | |
 | **E2B** | Running untrusted generated code and the repository's tests | |
 | **Langfuse** (optional) | Traces of runs, attempts and model calls | |
 | **Web app** (React) | Pages for projects and runs; a live view of one agent run | Any business logic; it only calls the Java API |
@@ -122,16 +122,16 @@ none of it is trusted until it has been checked.
 
 ## Design decisions
 
-**One model call per file.** A local 8B model cannot reliably emit several whole
-files in one reply. One file per call keeps replies small and lets each later
-file see the new version of the ones before it.
+**One model call per file.** Several whole files in one reply is where output
+gets cut off or files get mixed up. One file per call keeps replies small and
+lets each later file see the new version of the ones before it.
 
 **Diagnose before fixing.** On a test failure the model must first produce a
 structured diagnosis (root cause, fix strategy, files to change). Only those
 files are rewritten, with the diagnosis and the exact test output as feedback.
 
 **A sandbox per attempt, not per run.** Measured setup time is about 12 seconds;
-a local model needs minutes between attempts. A sandbox kept open across
+the model's diagnosis and fix take longer than that between attempts. A sandbox kept open across
 attempts would mostly be billed for sitting idle.
 
 **Read the repository once, at one commit.** The branch head is resolved to a
@@ -142,7 +142,7 @@ the sandbox clones and what the pull request builds on.
 commit, ref) so a multi-file change is one commit, not one commit per file.
 
 **Prompt budgeting in Python.** Java caps a snapshot at 200 files and 5 MB, far
-more than a small model can read. Python always lists every path, then includes
+far more than is useful in one prompt. Python always lists every path, then includes
 file contents in priority order until a character budget is reached.
 
 **The GitHub token stays in Java.** It is encrypted at rest (AES-256-GCM, key

@@ -115,7 +115,7 @@ function Outcome({ run, celebrate }: { run: Run; celebrate: boolean }) {
   if (run.active) {
     return (
       <Notice tone="busy" title="In progress" role="status">
-        This page updates on its own. With a local model a run usually takes a few minutes; you
+        This page updates on its own. A run usually takes one to three minutes; you
         can leave and come back.
       </Notice>
     )

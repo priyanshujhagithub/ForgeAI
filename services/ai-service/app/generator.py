@@ -1,8 +1,9 @@
 """Turns an engineering plan into file changes, one model call per file.
 
 The plan fixes each file's path and action; the model only supplies content.
-Writing one file per call keeps every reply small enough for a local model and
-lets later files see the versions of earlier files that were just written.
+Writing one file per call keeps every reply small, so it is never cut off at
+the output limit, and lets later files see the versions of earlier files that
+were just written.
 """
 
 import ast

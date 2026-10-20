@@ -98,9 +98,8 @@ services:
     envVars:
       - key: AI_SERVICE_TOKEN
         generateValue: true
-      # Gemini's free tier, through its OpenAI-compatible endpoint
-      - key: LLM_BASE_URL
-        value: https://generativelanguage.googleapis.com/v1beta/openai/
+      # Gemini's free tier. The model settings below are also the code's
+      # defaults; they are spelled out here so they can be changed per deployment.
       - key: LLM_API_KEY
         sync: false
       # Chosen by free daily allowance as much as by quality: one run makes
@@ -112,18 +111,6 @@ services:
         value: gemini-3.5-flash
       - key: LLM_FALLBACK_MODELS
         value: gemini-3.5-flash-lite,gemini-3.1-flash-lite
-      # Gemini 3 models cannot turn thinking off; keep it short instead.
-      - key: LLM_REASONING_EFFORT
-        value: low
-      # A free tier answers "too many requests" now and then; wait and retry.
-      - key: LLM_MAX_RETRIES
-        value: "3"
-      - key: LLM_TIMEOUT_SECONDS
-        value: "180"
-      - key: LLM_MAX_OUTPUT_TOKENS
-        value: "4000"
-      - key: GENERATION_MAX_OUTPUT_TOKENS
-        value: "8000"
       - key: E2B_API_KEY
         sync: false
       - key: LANGFUSE_PUBLIC_KEY
