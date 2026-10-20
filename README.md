@@ -262,8 +262,8 @@ All endpoints except register, login and the OAuth callback need
 
 | Suite | Tests | What it needs |
 |---|---|---|
-| `services/project-service` (`./mvnw verify`) | 126 | Docker, for a throwaway PostgreSQL |
-| `services/ai-service` (`pytest`) | 161 | Nothing: the model, E2B and Langfuse are faked |
+| `services/project-service` (`./mvnw verify`) | 129 | Docker, for a throwaway PostgreSQL |
+| `services/ai-service` (`pytest`) | 171 | Nothing: the model, E2B and Langfuse are faked |
 | `frontend` (`npm test`) | 38 | Nothing: logic and components in jsdom |
 | `frontend` (`npm run test:e2e`) | 39, each at desktop and phone size | Chromium; the API is mocked |
 

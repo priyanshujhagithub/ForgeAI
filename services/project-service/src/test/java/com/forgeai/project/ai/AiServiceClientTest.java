@@ -365,4 +365,76 @@ class AiServiceClientTest {
                 )
         );
     }
+
+    @Test
+    void shouldRetryWhenTheHostAnswersWithAnErrorPage() {
+        server.expect(
+                MockRestRequestMatchers.requestTo("http://localhost:8001/api/v1/analyze")
+        ).andRespond(
+                MockRestResponseCreators.withStatus(HttpStatus.BAD_GATEWAY)
+                        .contentType(MediaType.TEXT_HTML)
+                        .body("<!DOCTYPE html><html><title>502</title></html>")
+        );
+        server.expect(
+                MockRestRequestMatchers.requestTo("http://localhost:8001/api/v1/analyze")
+        ).andRespond(
+                MockRestResponseCreators.withSuccess(
+                        """
+                        {"summary": "Recovered.", "projectType": "Python",
+                         "keyComponents": [], "dependencies": [],
+                         "architectureNotes": "", "relevantFiles": []}
+                        """,
+                        MediaType.APPLICATION_JSON
+                )
+        );
+
+        RepositoryAnalysisResponse response = client.analyzeRepository(context());
+
+        assertEquals("Recovered.", response.getSummary());
+        server.verify();
+    }
+
+    @Test
+    void shouldSayPlainlyWhenTheHostKeepsAnsweringWithAnErrorPage() {
+        for (int i = 0; i < 3; i++) {
+            server.expect(
+                    MockRestRequestMatchers.requestTo("http://localhost:8001/api/v1/analyze")
+            ).andRespond(
+                    MockRestResponseCreators.withStatus(HttpStatus.BAD_GATEWAY)
+                            .contentType(MediaType.TEXT_HTML)
+                            .body("<!DOCTYPE html><html>" + "x".repeat(50_000) + "</html>")
+            );
+        }
+
+        AiServiceException exception = assertThrows(
+                AiServiceException.class,
+                () -> client.analyzeRepository(context())
+        );
+
+        assertTrue(exception.getMessage().contains("HTTP 502"));
+        assertTrue(exception.getMessage().contains("error page"));
+        assertTrue(exception.getMessage().length() < 300);
+        server.verify();
+    }
+
+    @Test
+    void shouldNotRetryAnErrorTheAiServiceItselfReported() {
+        server.expect(
+                MockRestRequestMatchers.requestTo("http://localhost:8001/api/v1/analyze")
+        ).andRespond(
+                MockRestResponseCreators.withStatus(HttpStatus.SERVICE_UNAVAILABLE)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("""
+                                {"detail": "Model provider returned HTTP 429"}
+                                """)
+        );
+
+        AiServiceException exception = assertThrows(
+                AiServiceException.class,
+                () -> client.analyzeRepository(context())
+        );
+
+        assertTrue(exception.getMessage().contains("Model provider returned HTTP 429"));
+        server.verify();
+    }
 }

@@ -133,9 +133,7 @@ class LLMClient:
             except openai.APIStatusError as exc:
                 if not last and exc.status_code in _TRY_NEXT_MODEL:
                     continue
-                raise LLMUnavailableError(
-                    f"Model provider returned HTTP {exc.status_code} for {model}: {exc.message}"
-                ) from exc
+                raise LLMUnavailableError(_describe(exc, model)) from exc
             except LLMUnavailableError:
                 # A dropped or timed-out connection. Gemini's free tier turns an
                 # overloaded model away like this as well as with a 503, so the
@@ -208,6 +206,25 @@ class LLMClient:
 
         problems = check(value) if check else []
         return (None, problems) if problems else (value, [])
+
+
+def _describe(exc: openai.APIStatusError, model: str) -> str:
+    """One readable sentence. Providers answer with long JSON that ends up on a run's page."""
+    text = str(exc.message)
+    if exc.status_code == 429:
+        limit = re.search(r"limit: (\d+)", text)
+        wait = re.search(r"retry in ((?:\d+h)?(?:\d+m)?\d+(?:\.\d+)?s)", text)
+        message = f"Model provider returned HTTP 429 for {model}: its quota is used up"
+        if limit:
+            message += f" (limit: {limit.group(1)} requests)"
+        if wait:
+            # "15h17m5.907s" -> "15h17m5s"
+            message += f"; it can be used again in {re.sub(r'\.\d+', '', wait.group(1))}"
+        return message + "."
+    first_line = text.strip().splitlines()[0] if text.strip() else ""
+    if len(first_line) > 300:
+        first_line = first_line[:300] + "..."
+    return f"Model provider returned HTTP {exc.status_code} for {model}: {first_line}"
 
 
 def _usage(response) -> dict[str, int] | None:

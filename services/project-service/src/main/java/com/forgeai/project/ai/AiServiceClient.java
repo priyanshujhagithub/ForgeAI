@@ -23,17 +23,30 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.Set;
 
 @Component
 public class AiServiceClient {
 
     static final String SERVICE_TOKEN_HEADER = "X-Service-Token";
 
+    // A host such as Render answers with its own error page, not the service's
+    // JSON, while the service is restarting or not yet listening. Such a request
+    // never got an answer from the service, so it is sent again after a pause.
+    private static final Set<Integer> HOST_FAILURES = Set.of(502, 503, 504);
+    private static final List<Duration> HOST_RETRY_DELAYS =
+            List.of(Duration.ofSeconds(5), Duration.ofSeconds(20));
+
+    // Longer messages are cut: they end up on the run's page.
+    private static final int MAX_DETAIL_LENGTH = 400;
+
     private final RestClient restClient;
     // Same service, longer read timeout: a solve call runs several model
     // calls and sandbox attempts before it answers.
     private final RestClient solveRestClient;
     private final ObjectMapper objectMapper;
+    private final List<Duration> hostRetryDelays;
 
     @Autowired
     public AiServiceClient(
@@ -63,6 +76,7 @@ public class AiServiceClient {
                 .build();
 
         this.objectMapper = objectMapper;
+        this.hostRetryDelays = HOST_RETRY_DELAYS;
     }
 
     // Used by tests so MockRestServiceServer can control the HTTP transport.
@@ -70,9 +84,18 @@ public class AiServiceClient {
             RestClient restClient,
             ObjectMapper objectMapper
     ) {
+        this(restClient, objectMapper, List.of(Duration.ZERO, Duration.ZERO));
+    }
+
+    AiServiceClient(
+            RestClient restClient,
+            ObjectMapper objectMapper,
+            List<Duration> hostRetryDelays
+    ) {
         this.restClient = restClient;
         this.solveRestClient = restClient;
         this.objectMapper = objectMapper;
+        this.hostRetryDelays = hostRetryDelays;
     }
 
     private static SimpleClientHttpRequestFactory requestFactory(
@@ -156,30 +179,48 @@ public class AiServiceClient {
     ) {
         byte[] requestBody = serialize(request);
 
-        try {
-            // The explicit byte body is deliberate: it guarantees the JSON is
-            // actually written to the wire (an earlier streaming body arrived empty).
-            return client.post()
-                    .uri(path)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(responseType);
+        for (int attempt = 0; ; attempt++) {
+            try {
+                // The explicit byte body is deliberate: it guarantees the JSON is
+                // actually written to the wire (an earlier streaming body arrived empty).
+                return client.post()
+                        .uri(path)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .body(requestBody)
+                        .retrieve()
+                        .body(responseType);
 
-        } catch (RestClientResponseException e) {
-            throw new AiServiceException(
-                    "AI service returned HTTP "
-                            + e.getStatusCode().value()
-                            + ": "
-                            + errorDetail(e),
-                    e
-            );
-        } catch (ResourceAccessException e) {
-            throw new AiServiceException(
-                    "AI service is unreachable or timed out",
-                    e
-            );
+            } catch (RestClientResponseException e) {
+                String detail = serviceDetail(e);
+                boolean hostFailure = detail == null
+                        && HOST_FAILURES.contains(e.getStatusCode().value());
+                if (hostFailure && attempt < hostRetryDelays.size()) {
+                    pause(hostRetryDelays.get(attempt));
+                    continue;
+                }
+                throw new AiServiceException(
+                        "AI service returned HTTP "
+                                + e.getStatusCode().value()
+                                + ": "
+                                + (detail != null ? detail : hostDetail(e)),
+                        e
+                );
+            } catch (ResourceAccessException e) {
+                throw new AiServiceException(
+                        "AI service is unreachable or timed out",
+                        e
+                );
+            }
+        }
+    }
+
+    private static void pause(Duration delay) {
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new AiServiceException("Interrupted while waiting to retry", interrupted);
         }
     }
 
@@ -196,14 +237,32 @@ public class AiServiceClient {
         }
     }
 
-    // FastAPI reports errors as {"detail": ...}.
-    private String errorDetail(RestClientResponseException e) {
-        String body = e.getResponseBodyAsString();
+    // The AI service reports its own errors as {"detail": ...}. Null means the
+    // answer came from somewhere else, such as the host's error page.
+    private String serviceDetail(RestClientResponseException e) {
         try {
-            JsonNode detail = objectMapper.readTree(body).path("detail");
-            return detail.isString() ? detail.asString() : detail.toString();
-        } catch (JacksonException parseFailure) {
-            return body;
+            JsonNode detail = objectMapper.readTree(e.getResponseBodyAsString()).path("detail");
+            if (detail.isMissingNode()) {
+                return null;
+            }
+            return shorten(detail.isString() ? detail.asString() : detail.toString());
+        } catch (JacksonException notJson) {
+            return null;
         }
+    }
+
+    private static String hostDetail(RestClientResponseException e) {
+        String body = e.getResponseBodyAsString().strip();
+        if (body.startsWith("<")) {
+            return "the AI service's host answered with an error page instead of the service."
+                    + " The service was probably restarting or starting up; try again.";
+        }
+        return body.isEmpty() ? "no details were given" : shorten(body);
+    }
+
+    private static String shorten(String text) {
+        return text.length() <= MAX_DETAIL_LENGTH
+                ? text
+                : text.substring(0, MAX_DETAIL_LENGTH) + "...";
     }
 }

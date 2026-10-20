@@ -210,3 +210,28 @@ def test_a_provider_that_drops_every_model_is_reported_as_unreachable():
     with pytest.raises(LLMUnavailableError, match="Cannot reach"):
         complete(llm)
 
+
+GOOGLE_QUOTA_REPLY = (
+    "Error code: 429 - [{'error': {'code': 429, 'message': 'You exceeded your current quota,"
+    " please check your plan and billing details. Quota exceeded for metric:"
+    " generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20,"
+    " model: gemini-3.8-flash\\nPlease retry in 15h17m5.907759903s.', 'status':"
+    " 'RESOURCE_EXHAUSTED', 'details': [" + "x" * 2000 + "]}}]"
+)
+
+
+def test_a_used_up_quota_is_described_in_one_sentence():
+    request = httpx.Request("POST", "http://provider")
+    error = openai.APIStatusError(
+        GOOGLE_QUOTA_REPLY, response=httpx.Response(429, request=request), body=None
+    )
+    llm, _ = make_llm([error], llm_model="gemini-3.8-flash")
+
+    with pytest.raises(LLMUnavailableError) as raised:
+        complete(llm)
+
+    assert str(raised.value) == (
+        "Model provider returned HTTP 429 for gemini-3.8-flash: its quota is used up"
+        " (limit: 20 requests); it can be used again in 15h17m5s."
+    )
+
